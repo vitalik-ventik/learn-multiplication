@@ -48,19 +48,14 @@ html,body{margin:0;padding:0;}
 body{
     font-family:"Nunito","Arial Rounded MT Bold",Arial,sans-serif;
     color:var(--ink);
-    background:
-        radial-gradient(circle at 12% 18%, rgba(255,255,255,0.55) 0 60px, transparent 61px),
-        radial-gradient(circle at 88% 8%, rgba(255,255,255,0.4) 0 90px, transparent 91px),
-        radial-gradient(circle at 92% 72%, rgba(255,255,255,0.35) 0 70px, transparent 71px),
-        radial-gradient(circle at 6% 88%, rgba(255,255,255,0.35) 0 50px, transparent 51px),
-        linear-gradient(to bottom,#ffecd2,#fcb69f);
+    background:var(--theme-bg, linear-gradient(to bottom,#ffecd2,#fcb69f));
     background-attachment:fixed;
     min-height:100vh;
     min-height:100dvh;
     display:flex; justify-content:center;
     padding:max(10px, env(safe-area-inset-top)) 0 max(10px, env(safe-area-inset-bottom));
 }
-#app{width:100%;max-width:420px;padding:0 14px;margin:auto 0;display:flex;flex-direction:column;gap:12px;}
+#app{position:relative;z-index:1;width:100%;max-width:420px;padding:0 14px;margin:auto 0;display:flex;flex-direction:column;gap:12px;}
 
 button{
     font-family:inherit;
@@ -114,7 +109,7 @@ button{
     max-width:100%;
     padding:6px 14px;
     border-radius:999px;
-    background:rgba(255,255,255,0.55);
+    background:rgba(255,255,255,0.88);
     color:var(--ink-soft);
     font-size:14px;font-weight:800;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -146,8 +141,15 @@ button{
 #streak.pop{animation:pop .4s;}
 @keyframes pop{0%{transform:scale(.4);}60%{transform:scale(1.3);}100%{transform:scale(1);}}
 
-#timerTrack{height:8px;margin-top:10px;background:#f1eefc;border-radius:4px;overflow:hidden;}
-#timerFill{height:100%;width:100%;background:linear-gradient(90deg,var(--coral),var(--gold));border-radius:4px;}
+/* Добрий таймер: персонаж іде до мети, без червоного кольору */
+#timerTrack{display:flex;align-items:center;gap:8px;margin-top:12px;padding-left:14px;}
+#timerTrack[hidden]{display:none;}
+#timerRoad{position:relative;flex:1;height:10px;border-radius:5px;background:repeating-linear-gradient(90deg,#ece8fb 0 10px,#f6f4fd 10px 20px);}
+#timerPassed{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:5px;background:linear-gradient(90deg,#c9f0d6,#ffe3a3);}
+#timerRunner{position:absolute;top:50%;left:0;transform:translate(-50%,-58%);font-size:26px;line-height:1;}
+#timerRunner.hurry{animation:hurry .45s ease-in-out infinite;}
+@keyframes hurry{0%,100%{transform:translate(-50%,-58%) rotate(-8deg);}50%{transform:translate(-50%,-72%) rotate(8deg);}}
+#timerGoal{font-size:26px;line-height:1;}
 
 #question{
     display:flex;justify-content:center;align-items:baseline;gap:.22em;
@@ -207,7 +209,22 @@ button{
 
 .fly-star{position:fixed;z-index:500;font-size:34px;pointer-events:none;transform:translate(-50%,-50%);}
 
-#version{text-align:center;font-size:12px;color:var(--ink-soft);opacity:.7;}
+#version{text-align:center;font-size:12px;color:var(--on-bg,var(--ink-soft));opacity:.75;}
+
+/* Живий фон: повільно пливуть цифри або значки теми */
+#bgLayer{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
+.floater{
+    position:absolute;top:100%;
+    line-height:1;
+    animation:drift var(--dur) linear var(--delay) infinite;
+    will-change:transform;
+}
+.floater.static{top:var(--top);animation:none;}
+@keyframes drift{
+    0%{transform:translate(0,0) rotate(0deg);}
+    50%{transform:translate(var(--sway),-62vh) rotate(18deg);}
+    100%{transform:translate(0,-128vh) rotate(-8deg);}
+}
 
 /* Нижні шторки: налаштування, статистика, зоопарк */
 #sheetBackdrop{
@@ -318,12 +335,31 @@ button{
 .end-actions .candy{height:56px;font-size:22px;}
 
 /* Діалог підтвердження (замість браузерного confirm) */
-#confirmLayer{
+/* Модальні вікна: підтвердження, знайомство */
+.modal-layer{
     position:fixed;inset:0;z-index:600;
     display:flex;align-items:center;justify-content:center;
     padding:16px;
 }
-#confirmLayer[hidden]{display:none;}
+.modal-layer[hidden]{display:none;}
+.name-input{
+    width:100%;
+    margin:0 0 18px;
+    padding:12px 14px;
+    border:3px solid #e4e0f5;
+    border-radius:16px;
+    font:inherit;font-size:22px;font-weight:800;
+    color:var(--ink);
+    text-align:center;
+    outline:none;
+}
+.name-input:focus{border-color:var(--blue);}
+.settings-name{margin:0;font-size:19px;text-align:left;}
+.zoo-next{margin-top:8px;font-size:14px;font-weight:800;color:var(--ink-soft);}
+.end-name{font-size:19px;font-weight:800;color:var(--green-d);margin:2px 0 6px;}
+.end-theme{margin:12px 0 4px;padding:12px;border-radius:16px;background:#efeaff;font-weight:800;}
+.end-theme .candy{margin-top:10px;height:46px;width:100%;font-size:18px;}
+.chip.locked{opacity:.55;box-shadow:none;cursor:default;}
 .confirm-backdrop{
     position:absolute;inset:0;
     background:rgba(45,42,74,0.45);
@@ -365,6 +401,8 @@ button{
 </head>
 <body>
 
+<div id="bgLayer" aria-hidden="true"></div>
+
 <div id="app">
     <header id="topbar">
         <button id="settingsBtn" class="round-btn" aria-label="Налаштування">⚙️</button>
@@ -382,7 +420,10 @@ button{
             <span id="progressText">0 / 0</span>
             <span id="streak"></span>
         </div>
-        <div id="timerTrack" hidden><div id="timerFill"></div></div>
+        <div id="timerTrack" hidden aria-hidden="true">
+            <div id="timerRoad"><div id="timerPassed"></div><div id="timerRunner"></div></div>
+            <div id="timerGoal"></div>
+        </div>
         <div id="question" aria-live="polite"></div>
         <div id="praise" aria-live="polite"></div>
     </main>
@@ -403,7 +444,7 @@ button{
 <section id="statsSheet" class="sheet" aria-label="Статистика"></section>
 <section id="zooSheet" class="sheet" aria-label="Мій зоопарк"></section>
 
-<div id="confirmLayer" hidden>
+<div id="confirmLayer" class="modal-layer" hidden>
     <div class="confirm-backdrop" id="confirmBackdrop"></div>
     <div class="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmText">
         <div class="confirm-icon" id="confirmIcon" aria-hidden="true"></div>
@@ -414,6 +455,20 @@ button{
             <button class="candy" id="confirmOk"></button>
         </div>
     </div>
+</div>
+
+<div id="nameLayer" class="modal-layer" hidden>
+    <div class="confirm-backdrop"></div>
+    <form class="confirm-box" id="nameForm" role="dialog" aria-modal="true" aria-labelledby="nameTitle">
+        <div class="confirm-icon" aria-hidden="true">👋</div>
+        <div class="confirm-title" id="nameTitle">Привіт!</div>
+        <div class="confirm-text">Як тебе звати?</div>
+        <input id="welcomeName" class="name-input" maxlength="20" autocomplete="off" placeholder="Ім'я" aria-label="Ім'я">
+        <div class="confirm-actions">
+            <button type="button" class="candy soft" id="nameSkip">Пропустити</button>
+            <button type="submit" class="candy green">Далі</button>
+        </div>
+    </form>
 </div>
 
 <script>
@@ -433,10 +488,23 @@ function saveJSON(key, value) {
 }
 
 const settings = Object.assign(
-    { mode: "normal", digit: 0, length: 10, speed: 0, sound: true, vibrate: true },
+    { mode: "normal", digit: 0, length: 10, speed: 0, sound: true, vibrate: true, theme: "sunrise" },
     loadJSON(SETTINGS_KEY, {})
 );
 let stats = loadJSON(STATS_KEY, {});
+
+// Ім'я дитини: null — ще не питали, "" — пропустили
+const NAME_KEY = "mult.name";
+let childName = null;
+try { childName = localStorage.getItem(NAME_KEY); } catch {}
+
+function setChildName(name) {
+    childName = (name || "").trim().slice(0, 20);
+    try { localStorage.setItem(NAME_KEY, childName); } catch {}
+}
+
+const escapeHtml = s => String(s).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -547,8 +615,9 @@ const feedbackPanel = $("feedbackPanel");
 const progressFill = $("progressFill");
 const progressText = $("progressText");
 const streakEl = $("streak");
-const timerFill = $("timerFill");
 const timerTrack = $("timerTrack");
+const timerPassed = $("timerPassed");
+const timerRunner = $("timerRunner");
 const overlay = $("overlay");
 const endDialog = $("endDialog");
 const backdrop = $("sheetBackdrop");
@@ -559,6 +628,75 @@ const soundBtn = $("soundBtn");
 const summaryBtn = $("summaryBtn");
 
 $("version").textContent = "v" + (self.APP_VERSION || "");
+
+// ---------- Теми: відкриваються за зібраних тваринок ----------
+// floaters — що пливе на фоні; runner/goal — хто і куди біжить у таймері
+const THEMES = [
+    {
+        id: "sunrise", name: "🌅 Світанок", need: 0,
+        bg: "linear-gradient(to bottom,#ffecd2,#fcb69f)", themeColor: "#FFD6B8", onBg: "#6b6890",
+        floaters: ["×", "2", "÷", "5", "=", "7", "+", "9", "3", "8"], floaterColor: "rgba(255,255,255,0.75)",
+        runner: "🐞", goal: "🌼"
+    },
+    {
+        id: "space", name: "🚀 Космос", need: 5,
+        bg: "radial-gradient(ellipse at 50% 0%,#4a3b95,#1b1542 65%)", themeColor: "#2a2160", onBg: "#d8d2ff",
+        floaters: ["⭐", "✨", "🪐", "·", "🌟", "☄️", "·", "✨"], floaterColor: "rgba(255,255,255,0.8)",
+        runner: "🚀", goal: "🌙"
+    },
+    {
+        id: "sea", name: "🐠 Море", need: 10,
+        bg: "linear-gradient(to bottom,#a8e6ff,#3a8fd1)", themeColor: "#a8e6ff", onBg: "#ffffff",
+        floaters: ["○", "🐟", "○", "🐠", "○", "🐡", "○", "🐚"], floaterColor: "rgba(255,255,255,0.85)",
+        runner: "🐢", goal: "🏝️"
+    },
+    {
+        id: "forest", name: "🌳 Ліс", need: 15,
+        bg: "linear-gradient(to bottom,#e3f9c0,#8fd49b)", themeColor: "#e3f9c0", onBg: "#2f5a38",
+        floaters: ["🍃", "🌸", "🍂", "🦋", "🍃", "🌼", "🐝"],
+        runner: "🐿️", goal: "🌰"
+    },
+    {
+        id: "candy", name: "🍭 Цукерки", need: 25,
+        bg: "linear-gradient(to bottom,#fbc2eb,#a6c1ee)", themeColor: "#fbc2eb", onBg: "#5b4a8a",
+        floaters: ["🍬", "🍭", "🧁", "💖", "🍩", "⭐", "🍬"],
+        runner: "🦄", goal: "🌈"
+    }
+];
+
+const themeById = id => THEMES.find(t => t.id === id) || THEMES[0];
+const isThemeUnlocked = t => zoo.length >= t.need;
+
+function renderFloaters(theme) {
+    const layer = $("bgLayer");
+    layer.innerHTML = "";
+    const count = 14;
+    for (let i = 0; i < count; i++) {
+        const el = document.createElement("div");
+        el.className = "floater" + (reduceMotion ? " static" : "");
+        el.textContent = theme.floaters[i % theme.floaters.length];
+        const dur = 22 + Math.random() * 22;
+        el.style.left = (i / count * 100 + Math.random() * 6) + "%";
+        el.style.fontSize = (18 + Math.random() * 26) + "px";
+        el.style.opacity = (0.35 + Math.random() * 0.4).toFixed(2);
+        el.style.setProperty("--dur", dur + "s");
+        el.style.setProperty("--delay", -(Math.random() * dur) + "s"); // вже «в дорозі» при старті
+        el.style.setProperty("--sway", (Math.random() * 80 - 40) + "px");
+        el.style.setProperty("--top", (Math.random() * 95) + "%");
+        if (theme.floaterColor) el.style.color = theme.floaterColor;
+        layer.appendChild(el);
+    }
+}
+
+function applyTheme(id) {
+    const theme = themeById(id);
+    document.body.style.setProperty("--theme-bg", theme.bg);
+    document.body.style.setProperty("--on-bg", theme.onBg);
+    document.querySelector('meta[name="theme-color"]').content = theme.themeColor;
+    timerRunner.textContent = theme.runner;
+    $("timerGoal").textContent = theme.goal;
+    renderFloaters(theme);
+}
 
 // ---------- Налаштування ----------
 const RANGE = [2, 3, 4, 5, 6, 7, 8, 9]; // без 1
@@ -624,13 +762,16 @@ function renderSummary() {
 let draft = null;
 
 function openSettings() {
-    draft = { ...settings };
+    draft = { ...settings, name: childName || "" };
     renderSettingsSheet();
     openSheet(settingsSheet);
 }
 
 function renderSettingsSheet() {
-    let html = `<div class="sheet-head"><h2>⚙️ Налаштування</h2></div>`;
+    let html = `<div class="sheet-head"><h2>⚙️ Налаштування</h2></div>
+        <div class="group"><div class="group-label">Ім'я</div>
+            <input id="settingsName" class="name-input settings-name" maxlength="20" autocomplete="off" placeholder="Як тебе звати?">
+        </div>`;
     Object.keys(SETTING_DEFS).forEach(key => {
         const def = SETTING_DEFS[key];
         if (def.hidden) return;
@@ -641,10 +782,31 @@ function renderSettingsSheet() {
         });
         html += `</div></div>`;
     });
+    html += `<div class="group"><div class="group-label">Тема</div><div class="chips">`;
+    THEMES.forEach(t => {
+        html += isThemeUnlocked(t)
+            ? `<button class="chip${t.id === draft.theme ? " selected" : ""}" data-theme="${t.id}">${t.name}</button>`
+            : `<button class="chip locked" disabled title="Відкриється, коли в зоопарку буде ${t.need} тваринок">🔒 ${t.name} · ${t.need}🐾</button>`;
+    });
+    html += `</div></div>`;
     html += `<button class="candy green done-btn" id="settingsDone">Готово</button>`;
     settingsSheet.innerHTML = html;
 
-    settingsSheet.querySelectorAll(".chip").forEach(chip => {
+    const nameInput = $("settingsName");
+    nameInput.value = draft.name;
+    nameInput.oninput = () => { draft.name = nameInput.value; };
+
+    // Тему одразу показуємо як попередній перегляд; збережеться при закритті шторки
+    settingsSheet.querySelectorAll(".chip[data-theme]").forEach(chip => {
+        chip.onclick = () => {
+            draft.theme = chip.dataset.theme;
+            applyTheme(draft.theme);
+            settingsSheet.querySelectorAll(".chip[data-theme]")
+                .forEach(c => c.classList.toggle("selected", c === chip));
+        };
+    });
+
+    settingsSheet.querySelectorAll(".chip[data-key]").forEach(chip => {
         chip.onclick = () => {
             const key = chip.dataset.key;
             draft[key] = SETTING_DEFS[key].options[chip.dataset.index].value;
@@ -659,6 +821,14 @@ async function applySettings() {
     const d = draft;
     draft = null;
     if (!d) return;
+
+    // Ім'я й тема не потребують перезапуску тесту
+    if ((d.name || "").trim() !== (childName || "")) setChildName(d.name);
+    if (d.theme !== settings.theme) {
+        settings.theme = d.theme;
+        saveJSON(SETTINGS_KEY, settings);
+    }
+
     const keys = Object.keys(SETTING_DEFS);
     const needsRestart = keys.some(k => SETTING_DEFS[k].restarts && d[k] !== settings[k]);
     const speedChanged = d.speed !== settings.speed;
@@ -722,6 +892,33 @@ function closeConfirm(result) {
 confirmOk.onclick = () => closeConfirm(true);
 confirmCancel.onclick = () => closeConfirm(false);
 $("confirmBackdrop").onclick = () => closeConfirm(false);
+
+// ---------- Знайомство: питаємо ім'я при першому запуску ----------
+const nameLayer = $("nameLayer");
+const welcomeName = $("welcomeName");
+
+function askName() {
+    nameLayer.hidden = false;
+    pauseTimer();
+    welcomeName.focus({ preventScroll: true });
+}
+
+function closeNameDialog(name) {
+    setChildName(name);
+    nameLayer.hidden = true;
+    welcomeName.blur();
+    if (childName) {
+        praise.textContent = `${childName} — вперед! 🚀`;
+        restartAnimation(praise, "show");
+    }
+    resumeTimer();
+}
+
+$("nameForm").onsubmit = e => {
+    e.preventDefault();
+    closeNameDialog(welcomeName.value);
+};
+$("nameSkip").onclick = () => closeNameDialog("");
 
 // ---------- Шторки ----------
 let openSheetEl = null;
@@ -838,6 +1035,10 @@ function openZoo(highlight) {
     let html = sheetHead("🐾 Мій зоопарк");
     html += `<div class="zoo-progress">Зібрано <b>${zoo.length}</b> з ${ANIMAL_COUNT}
         <div class="zoo-bar"><div style="width:${zoo.length / ANIMAL_COUNT * 100}%"></div></div></div>`;
+    const nextTheme = THEMES.find(t => t.need > zoo.length);
+    if (nextTheme) {
+        html += `<div class="zoo-next">🎨 Тема «${nextTheme.name}» відкриється, коли буде ${nextTheme.need} 🐾 (ще ${nextTheme.need - zoo.length})</div>`;
+    }
     html += sel
         ? `<div class="zoo-viewer"><img id="zooViewerImg" src="${animalSrc(sel)}" alt="Тваринка"></div>`
         : `<div class="zoo-empty">Тут поки порожньо 🥚<br>Розв'яжи тест без жодної помилки — і з'явиться перша тваринка!</div>`;
@@ -916,6 +1117,14 @@ let resultTimer = null;
 const RETRY_GAP = 2; // через скільки прикладів повторити помилковий
 
 const PRAISE = ["Молодець! 🎉", "Чудово! ⭐", "Так тримати! 💪", "Супер! 🚀", "Правильно! 👍", "Клас! 😎", "Розумничка! 🧠"];
+// Лише називний відмінок і теперішній час: без кличного відмінка й без роду
+const NAME_PRAISE = ["{name} — молодець! 🎉", "{name} знає! ⭐", "{name} рахує як ракета! 🚀", "Браво! {name} — супер! 👏", "{name} — розумничка! 🧠"];
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+function praiseText() {
+    if (childName && Math.random() < 0.4) return pick(NAME_PRAISE).replace("{name}", childName);
+    return pick(PRAISE);
+}
 
 function sessionInProgress() {
     return state !== "end" && (solved > 0 || errors > 0);
@@ -1022,7 +1231,7 @@ function succeed() {
     restartAnimation(card, "bounce");
     praise.textContent = streak >= 5 && streak % 5 === 0
         ? `🔥 ${streak} підряд!`
-        : PRAISE[Math.floor(Math.random() * PRAISE.length)];
+        : praiseText();
     restartAnimation(praise, "show");
     updateStreak();
     flyStar();
@@ -1084,7 +1293,7 @@ function dotsHtml(rows, cols) {
 function showFeedback(timedOut) {
     const eq = current.text.replace("?", `<b>${current.correct}</b>`);
     feedbackPanel.innerHTML = `
-        <div class="fb-title">${timedOut ? "⏰ Час вийшов!" : "Майже! 💪"}</div>
+        <div class="fb-title">${timedOut ? "⏰ Час минув!" : "Майже! 💪"}</div>
         <div class="fb-sub">Ось як правильно:</div>
         <div class="fb-eq">${eq}</div>
         ${dotsHtml(current.rows, current.cols)}
@@ -1116,12 +1325,21 @@ function showSessionEnd() {
                 <img src="${animalSrc(unlocked.n)}" alt="Тваринка">
                 <div class="zoo-count">🐾 ${zoo.length} з ${ANIMAL_COUNT}</div>
             </div>`;
+        // Ця тваринка відкрила нову тему?
+        const newTheme = unlocked.isNew && THEMES.find(t => t.need > 0 && t.need === zoo.length);
+        if (newTheme) {
+            reward += `
+                <div class="end-theme">🎨 Відкрито нову тему <span style="white-space:nowrap">«${newTheme.name}»</span>!
+                    <button class="candy" id="endThemeBtn" data-theme="${newTheme.id}">Увімкнути</button>
+                </div>`;
+        }
     } else {
         reward = `<div class="end-hint">Розв'яжи тест без жодної помилки — і в зоопарку з'явиться нова тваринка! 🐾</div>`;
     }
 
     endDialog.innerHTML = `
         <div class="end-title">${isPerfect ? "🎉 Ідеально! 🎉" : "Тест завершено!"}</div>
+        ${childName ? `<div class="end-name">${escapeHtml(childName)} — ${isPerfect ? "молодець! 🌟" : "тренується, і все виходить! 💪"}</div>` : ""}
         <div class="stars">${stars}</div>
         <div class="end-score">З першого разу: <b>${firstTry}</b> з <b>${totalExamples}</b></div>
         ${reward}
@@ -1135,6 +1353,14 @@ function showSessionEnd() {
     $("endNewBtn").onclick = newTest;
     if (isPerfect) {
         $("endZooBtn").onclick = () => openZoo(unlocked.n);
+        const themeBtn = $("endThemeBtn");
+        if (themeBtn) themeBtn.onclick = () => {
+            settings.theme = themeBtn.dataset.theme;
+            saveJSON(SETTINGS_KEY, settings);
+            applyTheme(settings.theme);
+            themeBtn.textContent = "✓ Увімкнено";
+            themeBtn.disabled = true;
+        };
         celebratePerfectScore();
         playSound("perfect");
         haptic([40, 60, 40, 60, 150]);
@@ -1152,7 +1378,7 @@ function startTimer() {
     if (!settings.speed) { timerTrack.hidden = true; return; }
     timerTrack.hidden = false;
     remaining = settings.speed * 1000;
-    timerFill.style.width = "100%";
+    renderTimer(0);
     resumeTimer();
 }
 
@@ -1168,14 +1394,23 @@ function pauseTimer() {
 }
 
 function resumeTimer() {
-    if (timerId || state !== "question" || !settings.speed || openSheetEl || confirmResolve || document.hidden) return;
+    if (timerId || state !== "question" || !settings.speed || openSheetEl || confirmResolve ||
+        !nameLayer.hidden || document.hidden) return;
     deadline = Date.now() + remaining;
     timerId = setInterval(tickTimer, 50);
 }
 
+// progress: 0 — старт, 1 — персонаж дійшов до мети (час минув)
+function renderTimer(progress) {
+    const pct = Math.min(1, Math.max(0, progress)) * 100 + "%";
+    timerPassed.style.width = pct;
+    timerRunner.style.left = pct;
+    timerRunner.classList.toggle("hurry", progress > 0.75); // легке підстрибування замість червоного
+}
+
 function tickTimer() {
     const left = deadline - Date.now();
-    timerFill.style.width = Math.max(0, left / (settings.speed * 1000) * 100) + "%";
+    renderTimer(1 - left / (settings.speed * 1000));
     if (left <= 0) {
         stopTimer();
         fail(true);
@@ -1239,6 +1474,7 @@ function flash(btn) {
 // ---------- Фізична клавіатура ----------
 document.addEventListener("keydown", e => {
     // Поки відкрито підтвердження: Esc — скасувати, Enter/пробіл — натискають кнопку у фокусі
+    if (!nameLayer.hidden) return; // ім'я вводять у поле, клавіші не чіпаємо
     if (confirmResolve) {
         if (e.key === "Escape") { e.preventDefault(); closeConfirm(false); }
         return;
@@ -1273,11 +1509,14 @@ document.addEventListener("keydown", e => {
 });
 
 // ---------- Старт ----------
+if (!isThemeUnlocked(themeById(settings.theme))) settings.theme = "sunrise";
+applyTheme(settings.theme);
 renderSummary();
 updateZooBadge();
 initKeyboard();
 prepareNextAnimal();
 newTest();
+if (childName === null) askName();
 
 if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
