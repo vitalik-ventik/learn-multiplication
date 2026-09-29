@@ -283,10 +283,19 @@ button{
 .zoo-progress b{color:var(--orange-d);}
 .zoo-bar{height:10px;border-radius:5px;background:#f1eefc;overflow:hidden;margin-top:4px;}
 .zoo-bar div{height:100%;background:linear-gradient(90deg,var(--gold),var(--orange));}
-.zoo-viewer{display:flex;justify-content:center;align-items:flex-end;height:170px;margin:6px 0 10px;border-radius:20px;background:linear-gradient(#e8f6ff,#fff6e0);}
-.zoo-viewer img{max-height:160px;max-width:90%;}
+.zoo-viewer{flex:none;display:flex;justify-content:center;align-items:flex-end;height:clamp(110px,22vh,170px);margin:6px 0 10px;border-radius:20px;background:linear-gradient(#e8f6ff,#fff6e0);}
+.zoo-viewer img{max-height:calc(100% - 10px);max-width:90%;}
 .zoo-empty{padding:18px;margin:6px 0 10px;border-radius:20px;background:#fff6e0;text-align:center;font-weight:700;}
-.zoo-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+/* Шторка зоопарку: верх зафіксовано, прокручується лише сітка тваринок */
+.sheet.zoo-sheet{
+    height:min(680px,88vh);height:min(680px,88dvh);
+    display:flex;flex-direction:column;
+    overflow:hidden;
+}
+.zoo-sheet .sheet-head,.zoo-sheet .zoo-progress,.zoo-sheet .zoo-next,.zoo-sheet .zoo-empty{flex:none;}
+.zoo-sheet .zoo-next{margin:0 0 8px;}
+.zoo-scroll{flex:1;min-height:0;overflow-y:auto;padding:4px 4px 8px;margin:0 -4px;border-top:2px solid #f3f1fb;}
+.zoo-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding-top:8px;}
 .zoo-cell{
     aspect-ratio:1;
     display:flex;align-items:center;justify-content:center;
@@ -483,7 +492,7 @@ button{
 <div id="sheetBackdrop"></div>
 <section id="settingsSheet" class="sheet settings-sheet" aria-label="Налаштування"></section>
 <section id="statsSheet" class="sheet" aria-label="Статистика"></section>
-<section id="zooSheet" class="sheet" aria-label="Мій зоопарк"></section>
+<section id="zooSheet" class="sheet zoo-sheet" aria-label="Мій зоопарк"></section>
 
 <div id="confirmLayer" class="modal-layer" hidden>
     <div class="confirm-backdrop" id="confirmBackdrop"></div>
@@ -1120,18 +1129,18 @@ function openZoo(highlight) {
         <div class="zoo-bar"><div style="width:${zoo.length / ANIMAL_COUNT * 100}%"></div></div></div>`;
     const nextTheme = THEMES.find(t => t.need > zoo.length);
     if (nextTheme) {
-        html += `<div class="zoo-next">🎨 Тема «${nextTheme.name}» відкриється, коли буде ${nextTheme.need} 🐾 (ще ${nextTheme.need - zoo.length})</div>`;
+        html += `<div class="zoo-next">🎨 Тема <span style="white-space:nowrap">«${nextTheme.name}»</span> відкриється, коли буде ${nextTheme.need} 🐾 (ще ${nextTheme.need - zoo.length})</div>`;
     }
     html += sel
         ? `<div class="zoo-viewer"><img id="zooViewerImg" src="${animalSrc(sel)}" alt="Тваринка"></div>`
         : `<div class="zoo-empty">Тут поки порожньо 🥚<br>Розв'яжи тест без жодної помилки — і з'явиться перша тваринка!</div>`;
-    html += `<div class="zoo-grid">`;
+    html += `<div class="zoo-scroll"><div class="zoo-grid">`;
     for (let n = 1; n <= ANIMAL_COUNT; n++) {
         html += zoo.includes(n)
             ? `<button class="zoo-cell${n === sel ? " sel" : ""}" data-n="${n}"><img src="${animalSrc(n)}" loading="lazy" alt="Тваринка ${n}"></button>`
             : `<div class="zoo-cell locked">?</div>`;
     }
-    html += `</div>`;
+    html += `</div></div>`;
     zooSheet.innerHTML = html;
 
     zooSheet.querySelectorAll("button.zoo-cell").forEach(cell => {
