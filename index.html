@@ -34,10 +34,11 @@
     --ink:#2d2a4a;
     --ink-soft:#6b6890;
     --card:#ffffff;
-    --blue:#4D96FF;   --blue-d:#2F72D6;
-    --green:#20BF6B;  --green-d:#14924F;
-    --coral:#FF7A6B;  --coral-d:#D95547;
-    --orange:#FF9F43; --orange-d:#D97F23;
+    /* Усі кольори кнопок з білим текстом мають контраст ≥ 3:1 (WCAG для великого жирного тексту) */
+    --blue:#2F80ED;   --blue-d:#2564B9;
+    --green:#16A34A;  --green-d:#117F3A;
+    --coral:#EE5A5A;  --coral-d:#BA4646;
+    --orange:#E16E00; --orange-d:#AF5600;
     --gold:#FFC83D;
     --radius:22px;
 }
@@ -104,7 +105,7 @@ button{
     position:absolute;top:-4px;right:-4px;
     min-width:20px;height:20px;padding:0 5px;
     border-radius:10px;
-    background:var(--orange);color:#fff;
+    background:var(--orange-d);color:#fff;
     font-size:12px;font-weight:900;line-height:20px;
     box-shadow:0 2px 4px rgba(0,0,0,0.2);
 }
@@ -246,7 +247,7 @@ button{
     font-size:17px;font-weight:800;
     box-shadow:0 3px 0 #dcd8ef;
 }
-.chip.selected{background:var(--blue);color:#fff;box-shadow:0 3px 0 var(--blue-d);}
+.chip.selected{background:var(--blue-d);color:#fff;box-shadow:0 3px 0 #1B4C8C;}
 .chip:active{transform:translateY(2px);box-shadow:none;}
 .sheet .done-btn{width:100%;height:54px;font-size:22px;margin-top:10px;}
 
@@ -254,7 +255,7 @@ button{
 .heat{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;font-size:clamp(11px,3vw,15px);font-weight:800;}
 .heat div{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:7px;}
 .heat .cell{background:#f1eefc;color:#8d89b0;}
-.heat .cell.seen{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3);}
+.heat .cell.seen{color:var(--ink);}
 .legend{font-size:14px;margin:10px 0 4px;text-align:center;}
 .hardest{font-size:15px;margin:6px 0;text-align:center;}
 .sheet-actions{display:flex;gap:10px;margin-top:12px;}
@@ -432,7 +433,7 @@ function saveJSON(key, value) {
 }
 
 const settings = Object.assign(
-    { mode: "normal", digit: 0, length: 10, speed: 0, sound: true },
+    { mode: "normal", digit: 0, length: 10, speed: 0, sound: true, vibrate: true },
     loadJSON(SETTINGS_KEY, {})
 );
 let stats = loadJSON(STATS_KEY, {});
@@ -469,6 +470,14 @@ function playSound(name) {
     } else {
         new Audio(`sounds/${name}.mp3`).play().catch(() => {});
     }
+}
+
+// ---------- Вібрація (Android; iOS Safari її не підтримує) ----------
+const canVibrate = typeof navigator.vibrate === "function";
+
+function haptic(pattern) {
+    if (!canVibrate || !settings.vibrate) return;
+    try { navigator.vibrate(pattern); } catch {}
 }
 
 // ---------- Конфеті ----------
@@ -584,6 +593,13 @@ const SETTING_DEFS = {
             { value: 10, text: "⏱ 10 с" },
             { value: 5,  text: "⚡ 5 с" }
         ]
+    },
+    vibrate: {
+        label: "Вібрація", restarts: false, hidden: !canVibrate,
+        options: [
+            { value: true,  text: "📳 Увімкнена" },
+            { value: false, text: "Вимкнена" }
+        ]
     }
 };
 
@@ -617,8 +633,9 @@ function renderSettingsSheet() {
     let html = `<div class="sheet-head"><h2>⚙️ Налаштування</h2></div>`;
     Object.keys(SETTING_DEFS).forEach(key => {
         const def = SETTING_DEFS[key];
+        if (def.hidden) return;
         const cur = optionFor(key, draft);
-        html += `<div class="group"><div class="group-label">${def.label}</div><div class="chips">`;
+        html +=`<div class="group"><div class="group-label">${def.label}</div><div class="chips">`;
         def.options.forEach((opt, i) => {
             html += `<button class="chip${opt === cur ? " selected" : ""}" data-key="${key}" data-index="${i}">${opt.text}</button>`;
         });
@@ -645,7 +662,7 @@ async function applySettings() {
     const keys = Object.keys(SETTING_DEFS);
     const needsRestart = keys.some(k => SETTING_DEFS[k].restarts && d[k] !== settings[k]);
     const speedChanged = d.speed !== settings.speed;
-    if (!needsRestart && !speedChanged) return;
+    if (keys.every(k => d[k] === settings[k])) return;
     if (needsRestart && sessionInProgress()) {
         const confirmed = await askConfirm({
             icon: "🔄",
@@ -662,7 +679,7 @@ async function applySettings() {
     renderSummary();
 
     if (needsRestart) newTest();
-    else if (state === "question") startTimer(); // лише швидкість: той самий приклад, новий таймер
+    else if (speedChanged && state === "question") startTimer(); // той самий приклад, новий таймер
 }
 
 soundBtn.onclick = () => {
@@ -759,7 +776,7 @@ function renderStats() {
             const s = stats[factKey(x, y)];
             if (s && s.r + s.w > 0) {
                 const hue = Math.round(120 * s.r / (s.r + s.w)); // 120 = зелений, 0 = червоний
-                html += `<div class="cell seen" style="background:hsl(${hue},62%,52%)" title="${x}×${y}: правильно ${s.r}, помилок ${s.w}">${x * y}</div>`;
+                html += `<div class="cell seen" style="background:hsl(${hue},75%,72%)" title="${x}×${y}: правильно ${s.r}, помилок ${s.w}">${x * y}</div>`;
             } else {
                 html += `<div class="cell" title="${x}×${y}: ще не було">${x * y}</div>`;
             }
@@ -948,6 +965,7 @@ function renderTyped() {
 function press(n) {
     if (state !== "question") return;
     playSound("click");
+    haptic(10);
     if (typed.length >= 2) return; // відповідь завжди не більше 81
     typed += n;
     renderTyped();
@@ -956,6 +974,7 @@ function press(n) {
 function back() {
     if (state !== "question") return;
     playSound("click");
+    haptic(10);
     typed = typed.slice(0, -1);
     renderTyped();
 }
@@ -963,6 +982,7 @@ function back() {
 function ok() {
     if (state !== "question") return;
     if (typed === "") {
+        haptic([20, 40, 20]);
         restartAnimation(card, "shake");
         return;
     }
@@ -978,6 +998,7 @@ function succeed() {
     streak++;
     if (!current.failed) firstTry++;
     playSound("correct");
+    haptic(30);
 
     slot.classList.add("ok");
     restartAnimation(card, "bounce");
@@ -1027,6 +1048,7 @@ function fail(timedOut) {
     // Повертаємо приклад у тест, щоб дитина розв'язала його ще раз
     pool.splice(Math.min(RETRY_GAP, pool.length), 0, current);
     playSound("wrong");
+    haptic([70, 60, 70]);
 
     if (typed) slot.classList.add("bad");
     restartAnimation(card, "shake");
@@ -1097,6 +1119,7 @@ function showSessionEnd() {
         $("endZooBtn").onclick = () => openZoo(unlocked.n);
         celebratePerfectScore();
         playSound("perfect");
+        haptic([40, 60, 40, 60, 150]);
         setTimeout(() => { if (state === "end") celebratePerfectScore(); }, 800);
     }
 }
@@ -1147,19 +1170,25 @@ document.addEventListener("visibilitychange", () => {
 
 // ---------- Екранна клавіатура ----------
 const keyButtons = {};
+// [фон, нижній край, колір цифри]. Контраст цифри з фоном ≥ 3:1;
+// на жовтій «9» білий нечитабельний, тому там темна цифра
 const KEY_COLORS = {
-    7: ["#FF6B6B", "#D94B4B"], 8: ["#FF9F43", "#D97F23"], 9: ["#F7B731", "#C98F12"],
-    4: ["#26DE81", "#17A862"], 5: ["#2BCBBA", "#179C8E"], 6: ["#45AAF2", "#2582C8"],
-    1: ["#4B7BEC", "#2E5BC4"], 2: ["#A55EEA", "#7F3DC2"], 3: ["#FD79A8", "#D6557F"],
+    7: ["#EE5A5A", "#BA4646"], 8: ["#E16E00", "#AF5600"], 9: ["#F7B731", "#C98F12", "#2d2a4a"],
+    4: ["#16A34A", "#117F3A"], 5: ["#0FA3A3", "#0C7F7F"], 6: ["#1E90E8", "#1770B5"],
+    1: ["#4B7BEC", "#2E5BC4"], 2: ["#A55EEA", "#7F3DC2"], 3: ["#E84393", "#B53473"],
     0: ["#8C7AE6", "#6A58C4"]
 };
 
-function addKey(label, [c, d], action, extraClass, ariaLabel) {
+function addKey(label, [c, d, text], action, extraClass, ariaLabel) {
     const btn = document.createElement("button");
     btn.className = "candy" + (extraClass ? " " + extraClass : "");
     btn.textContent = label;
     btn.style.setProperty("--c", c);
     btn.style.setProperty("--d", d);
+    if (text) {
+        btn.style.color = text;
+        btn.style.textShadow = "0 2px 0 rgba(255,255,255,0.35)";
+    }
     if (ariaLabel) btn.setAttribute("aria-label", ariaLabel);
     btn.addEventListener("pointerdown", e => {
         e.preventDefault();
@@ -1176,9 +1205,10 @@ function initKeyboard() {
     keyboard.innerHTML = "";
     const digitKey = n => { keyButtons[n] = addKey(String(n), KEY_COLORS[n], () => press(String(n))); };
     [7, 8, 9].forEach(digitKey);
-    keyButtons.back = addKey("⌫", ["#A5B1C2", "#7F8C9B"], back, "", "Стерти");
+    keyButtons.back = addKey("⌫", ["#8492A6", "#677281"], back, "", "Стерти");
     [4, 5, 6].forEach(digitKey);
-    keyButtons.ok = addKey("OK", ["#20BF6B", "#14924F"], ok, "key-ok");
+    // OK темніший за зелену «4», щоб сусідні кнопки не зливались
+    keyButtons.ok = addKey("OK", ["#15803D", "#0F5F2D"], ok, "key-ok");
     [1, 2, 3].forEach(digitKey);
     keyButtons[0] = addKey("0", KEY_COLORS[0], () => press("0"), "key-zero");
 }
