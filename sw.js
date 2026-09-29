@@ -1,91 +1,80 @@
-const CACHE = "math-app-v1.7";
+importScripts("version.js");
+
+// Основний кеш версіонується: при зміні APP_VERSION у version.js старий видаляється.
+const CACHE = "math-app-v" + self.APP_VERSION;
+// Тваринки кешуються по мірі показу й переживають оновлення версії.
+const MEDIA_CACHE = "math-media-v1";
+
+const CORE = [
+  "./",
+  "./index.html",
+  "./manifest.json",
+  "./version.js",
+  "./vendor/confetti.browser.min.js",
+  "./icon-192.png",
+  "./icon-512.png",
+  "./apple-touch-icon.png",
+  "./sounds/click.mp3",
+  "./sounds/correct.mp3",
+  "./sounds/wrong.mp3",
+  "./sounds/perfect.mp3"
+];
 
 self.addEventListener("install", e => {
-  e.waitUntil(
-    caches.open(CACHE).then(cache => {
-      return cache.addAll([
-        "./",
-        "./index.html",
-        "./manifest.json",
-        "./icon-192.png",
-        "./icon-512.png",        
-        "./sounds/click.mp3",
-        "./sounds/correct.mp3",
-        "./sounds/wrong.mp3",
-        "./sounds/perfect.mp3",
-        './gifs/01.gif',
-        './gifs/02.gif',
-        './gifs/03.gif',
-        './gifs/04.gif',
-        './gifs/05.gif',
-        './gifs/06.gif',
-        './gifs/07.gif',
-        './gifs/08.gif',
-        './gifs/09.gif',
-        './gifs/10.gif',
-        './gifs/11.gif',
-        './gifs/12.gif',
-        './gifs/13.gif',
-        './gifs/14.gif',
-        './gifs/15.gif',
-        './gifs/16.gif',
-        './gifs/17.gif',
-        './gifs/18.gif',
-        './gifs/19.gif',
-        './gifs/20.gif',
-        './gifs/21.gif',
-        './gifs/22.gif',
-        './gifs/23.gif',
-        './gifs/24.gif',
-        './gifs/25.gif',
-        './gifs/26.gif',
-        './gifs/27.gif',
-        './gifs/28.gif',
-        './gifs/29.gif',
-        './gifs/30.gif',
-        './gifs/31.gif',
-        './gifs/32.gif',
-        './gifs/33.gif',
-        './gifs/34.gif',
-        './gifs/35.gif',
-        './gifs/36.gif',
-        './gifs/37.gif',
-        './gifs/38.gif',
-        './gifs/39.gif',
-        './gifs/40.gif',
-        './gifs/41.gif',
-        './gifs/42.gif',
-        './gifs/43.gif',
-        './gifs/44.gif',
-        './gifs/45.gif',
-        './gifs/46.gif',
-        './gifs/47.gif',
-        './gifs/48.gif',
-        './gifs/49.gif',
-        './gifs/50.gif'
-      ]);
-    })
-  );
-
+  e.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE)));
   self.skipWaiting();
 });
 
 self.addEventListener("activate", e => {
   e.waitUntil(
-
-    caches.keys().then(keys => {
-      return Promise.all(
-        keys.filter(key => key !== CACHE)
-            .map(key => caches.delete(key))
-      );
-    })
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(key => key !== CACHE && key !== MEDIA_CACHE).map(key => caches.delete(key))
+      ))
+      .then(() => self.clients.claim())
   );
-
-  self.clients.claim();
 });
 
+// Анімації тваринок: з кешу, а якщо немає — з мережі з подальшим збереженням
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response.ok) {
+    const cache = await caches.open(MEDIA_CACHE);
+    cache.put(request, response.clone());
+  }
+  return response;
+}
+
+// Решта: одразу віддаємо з кешу, а в фоні оновлюємо з мережі.
+// Так нова версія index.html підхоплюється при наступному запуску навіть без зміни версії.
+async function staleWhileRevalidate(event) {
+  const request = event.request;
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(request, { ignoreSearch: request.mode === "navigate" });
+  const network = fetch(request)
+    .then(response => {
+      if (response.ok) cache.put(request, response.clone());
+      return response;
+    })
+    .catch(() => cached || Response.error());
+
+  if (cached) {
+    event.waitUntil(network);
+    return cached;
+  }
+  return network;
+}
+
 self.addEventListener("fetch", e => {
-  e.respondWith(
-    caches.match(e.request).then(res => res || fetch(e.request))
-  );
+  if (e.request.method !== "GET") return;
+  const url = new URL(e.request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (/\/(animals|gifs)\//.test(url.pathname)) {
+    e.respondWith(cacheFirst(e.request));
+  } else {
+    e.respondWith(staleWhileRevalidate(e));
+  }
 });

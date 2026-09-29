@@ -1,7 +1,11 @@
 {
+  "id": "./",
   "name": "Таблиця множення",
   "short_name": "Множення",
+  "description": "Тренажер таблиці множення для дітей",
+  "lang": "uk",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#ffecd2",
   "theme_color": "#4D96FF",
@@ -10,12 +14,14 @@
     {
       "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
