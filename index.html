@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<title>Таблиця множення</title>
+<style>
+html,body{margin:0;padding:0;height:100%;}
+body{
+    font-family:'Arial',sans-serif;
+    background:linear-gradient(to bottom,#ffecd2,#fcb69f);
+    display:flex; align-items:center; justify-content:center;
+}
+#container{width:95%;max-width:400px;text-align:center;}
+
+/* Питання й відповідь */
+#question{font-size:clamp(24px,6vw,48px);margin-top:2vh;color:#1a1a1a;font-weight:bold;}
+#answerBox{background:white;border-radius:12px;padding:1vh;margin:2vh 0;box-shadow:0 3px 8px rgba(0,0,0,0.2);}
+#answer{font-size:clamp(26px,6vw,42px);min-height:1.4em;letter-spacing:4px;font-weight:bold;}
+#feedback{font-size:clamp(18px,4vw,28px);margin:1vh 0;font-weight:bold;}
+
+/* Клавіатура */
+.keyboard{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:1vw;
+    margin-top:3vh;
+}
+.keyboard button{
+    font-size:clamp(18px,4vw,44px);
+    padding: 0.5vh 0;
+}
+button{
+    width:100%;
+    font-size:clamp(18px,4vw,28px);
+    padding:1.5vh 0;
+    border-radius:10px;
+    border:none;
+    color:#fff;
+    font-weight:bold;
+    cursor:pointer;
+    box-shadow:0 4px 6px rgba(0,0,0,0.2);
+    transition:0.00s;
+    user-select:none;
+}
+button:active,
+button.active{transform:scale(0.95);opacity:0.8;}
+
+/* Підрахунок та налаштування */
+#scoreboard{font-size:clamp(16px,3vw,24px);margin-top:2vh;color:#1a1a1a;}
+#settings{font-size:clamp(14px,3vw,18px);color:#1a1a1a;}
+
+/* Кнопки вибору режиму та цифри */
+.selection-btn{padding:1vh 3vw;border-radius:12px;font-size:clamp(16px,3vw,22px);margin:0.5vh;background:#4D96FF;color:white;}
+.selection-btn:active{transform:scale(0.95);}
+
+/* спливаюче вікно */
+.popup{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    background:white;
+    border-radius:12px;
+    padding:2vw;
+    box-shadow:0 4px 10px rgba(0,0,0,0.3);
+    display:none;
+    z-index:100;
+    max-width:90vw;
+}
+.popup button{margin:0.5vh;font-size:clamp(16px,3vw,22px);}
+.popup button:hover{opacity:0.8;}
+
+/* Спливаюче вікно результату */
+#overlay{
+    position:fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background: rgba(0,0,0,0.3);
+    backdrop-filter: blur(2px);
+    display:none;
+    z-index:150;
+}
+#resultPopup{
+    position:fixed;
+    top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    padding:25px 40px;
+    border-radius:16px;
+    font-size:clamp(22px,5vw,34px);
+    font-weight:bold;
+    display:none;
+    z-index:200;
+    box-shadow:0 6px 20px rgba(0,0,0,0.4);
+}
+.correct{background:#28a745;color:white;}
+.wrong{background:#e74c3c;color:white;}
+
+/* Timer bar */
+#timerBarContainer{width:100%;height:8px;background:#ddd;border-radius:5px;margin:10px 0;overflow:hidden;display:none;}
+#timerBar{height:100%;width:100%;background:#e74c3c;transition:width 0.1s linear;}
+
+#version {font-size:clamp(14px,2vw,20px);width:100%;margin-top:8px;}
+
+#scoreboard {
+    background: rgba(255,255,255,0.75);
+    border-radius: 14px;
+    padding: 14px 12px 16px;
+    margin-top: 3vh;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Налаштування — написи зліва */
+#settings {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mode-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mode-container span {
+    min-width: 110px;           /* фіксована ширина для вирівнювання */
+    text-align: left;          
+    font-weight: 600;
+    color: #1a1a1a;
+    font-size: clamp(15px, 3.5vw, 19px);
+}
+
+.selection-btn {
+    flex: 1;                    /* кнопка займає все вільне місце */
+    text-align: center;
+    padding: 12px 16px;
+    font-size: clamp(16px, 4vw, 21px);
+}
+</style>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4D96FF">
+</head>
+<body>
+
+<!-- Звуки -->
+<audio id="soundClick" preload="auto"><source src="sounds/click.mp3" type="audio/mpeg"></audio>
+<audio id="soundCorrect" preload="auto"><source src="sounds/correct.mp3" type="audio/mpeg"></audio>
+<audio id="soundWrong" preload="auto"><source src="sounds/wrong.mp3" type="audio/mpeg"></audio>
+<audio id="soundPerfect" preload="auto"><source src="sounds/perfect.mp3" type="audio/mpeg"></audio>
+
+<div id="container">
+
+<div id="settings">
+    <div class="mode-container">
+        <span>Режим:</span>
+        <button id="modeBtn" class="selection-btn">3 × 5 = ?</button>
+    </div>
+    <div class="mode-container">
+        <span>Вибрати цифру:</span>
+        <button id="digitBtn" class="selection-btn">Усі</button>
+    </div>
+    <div class="mode-container">
+        <span>Швидкість:</span>
+        <button id="speedBtn" class="selection-btn">Без обмежень</button>
+    </div>
+</div>
+
+<div id="modePopup" class="popup"></div>
+<div id="digitPopup" class="popup"></div>
+<div id="speedPopup" class="popup"></div>
+
+<div id="question"></div>
+<div id="answerBox"><div id="answer"></div></div>
+<div id="feedback"></div>
+
+<div id="timerBarContainer"><div id="timerBar"></div></div>
+
+<div class="keyboard" id="keyboard"></div>
+<div id="scoreboard">
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; margin-bottom: 8px; font-size: clamp(15px, 3.2vw, 19px); color: #1a1a1a;">
+        <div>Прикладів</div>
+        <div>Пройдено</div>
+        <div>Помилок</div>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; font-size: clamp(26px, 6.5vw, 36px); font-weight: bold; color: #1a1a1a;">
+        <span id="totalExamples">0</span>
+        <span id="answeredCount">0</span>
+        <span id="errorCount">0</span>
+    </div>
+</div>
+<button id="resetBtn" class="selection-btn" style="margin-top: 14px; width: 100%;">Новий тест</button>
+
+<div id="overlay"></div>
+<div id="resultPopup"></div>
+<div id="version">v1.7</div>
+</div>
+
+<div id="animalCelebration" style="display:none; position:fixed; left: 50%; bottom: 0; transform:translate(-50%, 0%); z-index:300; pointer-events:none;">
+    <img id="animalGif" src="" alt="Тваринка" style="width:280px; max-width:75vw; height:auto;">
+</div>
+
+<script>
+let a,b,correct, timeLimit=0, timerInterval;
+let pool = [];
+let totalExamples = 0;
+let answered = 0;
+let errors = 0;
+
+const soundClick   = document.getElementById('soundClick');
+const soundCorrect = document.getElementById('soundCorrect');
+const soundWrong   = document.getElementById('soundWrong');
+const soundPerfect   = document.getElementById('soundPerfect');
+
+function playSound(audioEl) {
+    if (!audioEl) return;
+    audioEl.currentTime = 0;
+    audioEl.play().catch(() => {});
+}
+
+// Красиве святкування при ідеальному результаті
+function celebratePerfectScore() {
+    const duration = 4000; // 4 секунди
+    const end = Date.now() + duration;
+
+    const colors = ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#ff6fcf', '#ffa500'];
+
+    (function frame() {
+        confetti({
+            particleCount: 8,
+            angle: Math.random() * 60 + 60,
+            spread: 70,
+            origin: { x: Math.random(), y: Math.random() - 0.2 },
+            colors: colors
+        });
+
+        confetti({
+            particleCount: 8,
+            angle: Math.random() * 60 + 120,
+            spread: 70,
+            origin: { x: Math.random(), y: Math.random() - 0.2 },
+            colors: colors
+        });
+
+        if (Date.now() < end) {
+            requestAnimationFrame(frame);
+        }
+    })();
+}
+
+const celebrationAnimals = [
+    '01.gif',
+    '02.gif',
+    '03.gif',
+    '04.gif',
+    '05.gif',
+    '06.gif',
+    '07.gif',
+    '08.gif',
+    '09.gif',
+    '10.gif',
+    '11.gif',
+    '12.gif',
+    '13.gif',
+    '14.gif',
+    '15.gif',
+    '16.gif',
+    '17.gif',
+    '18.gif',
+    '19.gif',
+    '20.gif',    
+    '21.gif',
+    '22.gif',
+    '23.gif',
+    '24.gif',
+    '25.gif',
+    '26.gif',
+    '27.gif',
+    '28.gif',
+    '29.gif',
+    '30.gif',     
+    '31.gif',
+    '32.gif',
+    '33.gif',
+    '34.gif',
+    '35.gif',
+    '36.gif',
+    '37.gif',
+    '38.gif',
+    '39.gif',
+    '40.gif',
+    '41.gif',
+    '42.gif',
+    '43.gif',
+    '44.gif',
+    '45.gif',
+    '46.gif',
+    '47.gif',
+    '48.gif',
+    '49.gif',
+    '50.gif'
+];
+
+function showRandomAnimal() {
+    //if (Math.random() > 0.45) return; // ~65% шанс показати тваринку
+
+    const animal = celebrationAnimals[Math.floor(Math.random() * celebrationAnimals.length)];
+    
+    const img = document.getElementById('animalGif');
+    const container = document.getElementById('animalCelebration');
+    
+    img.src = 'gifs/'+animal;
+    container.style.display = 'block';
+
+    // Автоматично ховаємо через 5 секунд
+    setTimeout(() => {
+        container.style.display = 'none';
+    }, 5200);
+}
+
+const question = document.getElementById("question");
+const answer = document.getElementById("answer");
+const feedback = document.getElementById("feedback");
+const keyboard = document.getElementById("keyboard");
+const totalEl = document.getElementById("totalExamples");
+const answeredEl = document.getElementById("answeredCount");
+const errorsEl = document.getElementById("errorCount");
+const resultPopup = document.getElementById("resultPopup");
+const overlay = document.getElementById("overlay");
+const timerBar = document.getElementById("timerBar");
+
+const modeBtn = document.getElementById("modeBtn");
+const digitBtn = document.getElementById("digitBtn");
+const speedBtn = document.getElementById("speedBtn");
+const modePopup = document.getElementById("modePopup");
+const digitPopup = document.getElementById("digitPopup");
+const speedPopup = document.getElementById("speedPopup");
+const resetBtn = document.getElementById("resetBtn");
+
+const modes = [
+    {value:"normal", text:"3 × 5 = ?"},
+    {value:"missingB", text:"3 × ? = 15"},
+    {value:"missingA", text:"? × 5 = 15"},
+    {value:"division", text:"15 ÷ 3 = ?"},
+    {value:"mixed", text:"Змішаний режим"}
+];
+let mode = "normal";
+
+const digits = [0,1,2,3,4,5,6,7,8,9];
+let filterDigit = 0;
+
+const speeds = [
+    {value:0, text:"Без обмежень"},
+    {value:5, text:"5 секунд"},
+    {value:10, text:"10 секунд"}
+];
+
+function createPopup(popupEl, items, clickHandler) {
+    popupEl.innerHTML = "";
+    items.forEach(item => {
+        const btn = document.createElement("button");
+        btn.innerText = item.text || item;
+        btn.style.background = item.color || "#4D96FF";
+        btn.onclick = () => {
+            clickHandler(item);
+            popupEl.style.display = "none";
+        };
+        popupEl.appendChild(btn);
+    });
+}
+
+createPopup(modePopup, modes, (item) => {
+    mode = item.value;
+    modeBtn.innerText = item.text;
+    generatePoolAndStart();
+});
+
+createPopup(digitPopup, 
+    digits
+        .filter(d => d !== 1)                    
+        .map(d => ({
+            text: d === 0 ? "Усі" : d,
+            color: "#6BCB77",
+            value: d
+        })), 
+    (item) => {
+        filterDigit = item.value;
+        digitBtn.innerText = item.text;
+        generatePoolAndStart();
+    }
+);
+
+createPopup(speedPopup, speeds, (item) => {
+    timeLimit = item.value;
+    speedBtn.innerText = item.text;
+    // швидкість не впливає на пул — просто запускаємо нове питання
+    newQuestion();
+});
+
+modeBtn.onclick = () => { modePopup.style.display = (modePopup.style.display === "block") ? "none" : "block"; digitPopup.style.display = "none"; speedPopup.style.display = "none"; };
+digitBtn.onclick = () => { digitPopup.style.display = (digitPopup.style.display === "block") ? "none" : "block"; modePopup.style.display = "none"; speedPopup.style.display = "none"; };
+speedBtn.onclick = () => { speedPopup.style.display = (speedPopup.style.display === "block") ? "none" : "block"; modePopup.style.display = "none"; digitPopup.style.display = "none"; };
+
+resetBtn.onclick = generatePoolAndStart;
+
+const colors = ["#FF6B6B","#A38C2E","#6BCB77","#4D96FF","#FF6FCF","#FFA500","#9B5DE5","#00BFFF","#FF8787","#3DDC97"];
+
+function updateScoreboard() {
+    totalEl.textContent = totalExamples;
+    answeredEl.textContent = answered;
+    errorsEl.textContent = errors;
+}
+
+function generatePool() {
+    pool = [];
+    const range = [2,3,4,5,6,7,8,9]; // без 1
+
+    const generateForMode = (m) => {
+        let arr = [];
+        if (m === "division") {
+            if (filterDigit !== 0) {
+                range.forEach(res => {
+                    arr.push({
+                        questionText: `${res * filterDigit} ÷ ${filterDigit} = ?`,
+                        correct: res
+                    });
+                });
+            } else {
+                range.forEach(res => {
+                    range.forEach(div => {
+                        arr.push({
+                            questionText: `${res * div} ÷ ${div} = ?`,
+                            correct: res
+                        });
+                    });
+                });
+            }
+        } else {
+            if (filterDigit !== 0) {
+                if (m === "normal") {
+                    range.forEach(other => {
+                        arr.push({
+                            questionText: `${filterDigit} × ${other} = ?`,
+                            correct: filterDigit * other
+                        });
+                    });
+                } else if (m === "missingB") {
+                    range.forEach(a => {
+                        const prod = a * filterDigit;
+                        arr.push({
+                            questionText: `${a} × ? = ${prod}`,
+                            correct: filterDigit
+                        });
+                    });
+                } else if (m === "missingA") {
+                    range.forEach(other => {
+                        const prod = other * filterDigit;
+                        arr.push({
+                            questionText: `? × ${filterDigit} = ${prod}`,
+                            correct: other
+                        });
+                    });
+                }
+            } else {
+                // усі комбінації 2-9
+                range.forEach(x => {
+                    range.forEach(y => {
+                        if (m === "normal") {
+                            arr.push({questionText: `${x} × ${y} = ?`, correct: x * y});
+                        } else if (m === "missingB") {
+                            arr.push({questionText: `${x} × ? = ${x * y}`, correct: y});
+                        } else if (m === "missingA") {
+                            arr.push({questionText: `? × ${y} = ${x * y}`, correct: x});
+                        }
+                    });
+                });
+            }
+        }
+        return arr;
+    };
+
+    if (mode === "mixed") {
+        ["normal","missingA","missingB","division"].forEach(m => {
+            pool = pool.concat(generateForMode(m));
+        });
+    } else {
+        pool = generateForMode(mode);
+    }
+
+    // перемішуємо
+    pool.sort(() => Math.random() - 0.5);
+}
+
+function generatePoolAndStart() {
+    generatePool();
+    totalExamples = pool.length;
+    answered = 0;
+    errors = 0;
+    updateScoreboard();
+    newQuestion();
+}
+
+function newQuestion() {
+    clearInterval(timerInterval);
+
+    if (pool.length === 0) {
+        showSessionEnd();
+        return;
+    }
+
+    const idx = Math.floor(Math.random() * pool.length);
+    const q = pool.splice(idx, 1)[0];
+
+    question.innerText = q.questionText;
+    correct = q.correct;
+
+    answer.innerText = "";
+    feedback.innerText = "";
+    startTimer();
+}
+
+function press(n) {
+    if (resultPopup.style.display === 'block') return;
+    playSound(soundClick);
+    answer.innerText += n;    
+}
+
+function back() {
+    playSound(soundClick);
+    answer.innerText = answer.innerText.slice(0, -1);
+}
+
+function showResult(text, isCorrect) {
+    overlay.style.display = "block";
+    resultPopup.innerHTML = `<div>${text}</div>`;
+    resultPopup.className = isCorrect ? "correct" : "wrong";
+    resultPopup.style.display = "block";
+
+    clearInterval(timerInterval);
+
+    if (timeLimit === 0) {
+        setTimeout(() => {
+            resultPopup.style.display = "none";
+            overlay.style.display = "none";
+            newQuestion();
+        }, isCorrect ? 1000 : 2000);
+    } else {
+        const btn = document.createElement("button");
+        btn.innerText = "Продовжити";
+        btn.style.marginTop = "15px";
+        btn.style.padding = "10px 25px";
+        btn.style.fontSize = "clamp(16px,3vw,22px)";
+        btn.style.borderRadius = "10px";
+        btn.style.border = "none";
+        btn.style.background = "#fff";
+        btn.style.color = "#000";
+        btn.onclick = () => {
+            resultPopup.style.display = "none";
+            overlay.style.display = "none";
+            newQuestion();
+        };
+        resultPopup.appendChild(btn);
+    }
+}
+
+function ok() {
+    const user = parseInt(answer.innerText) || 0;
+    answered++;
+
+    if (user === correct) {
+        playSound(soundCorrect);
+        showResult("Правильно!", true);
+    } else {
+        errors++;
+        playSound(soundWrong);
+        showResult(`Помилка! Відповідь: ${correct}`, false);
+    }
+
+    updateScoreboard();
+}
+
+function showSessionEnd() {
+    clearInterval(timerInterval);
+    overlay.style.display = "block";
+
+    const isPerfect = (errors === 0);
+
+    resultPopup.innerHTML = `
+        <div style="text-align:center; padding: 20px 10px;">
+            <div style="font-size:clamp(32px,7vw,48px); margin-bottom:15px;">
+                ${isPerfect ? '🎉 Супер! Ідеально! 🎉' : 'Тест завершено!'}
+            </div>
+            <div style="font-size:clamp(22px,5vw,32px); margin:20px 0;">
+                Правильно: <strong>${answered - errors}</strong> з <strong>${totalExamples}</strong>
+            </div>
+            ${isPerfect ? 
+                '<div style="font-size:clamp(18px,4vw,26px); color:#28a745; margin-bottom:25px;">Без жодної помилки! Ти молодець! 🌟</div>' 
+                : `<div style="font-size:clamp(18px,4vw,26px); margin-bottom:25px;">Помилок: <strong>${errors}</strong></div>`
+            }
+            <button style="padding:14px 40px; font-size:clamp(18px,4.5vw,26px); background:white; color:black; border:none; border-radius:14px; cursor:pointer;">
+                Новий тест
+            </button>
+        </div>
+    `;
+
+    resultPopup.className = "correct";
+    resultPopup.style.display = "block";
+
+    // Запускаємо красиву анімацію тільки якщо 0 помилок
+    if (isPerfect) {
+        celebratePerfectScore();
+        showRandomAnimal();
+        playSound(soundPerfect);
+        // Додатковий вибух через 800 мс
+        setTimeout(() => {
+            if (resultPopup.style.display === "block") celebratePerfectScore();
+        }, 800);
+    }
+
+    // Кнопка "Новий тест"
+    resultPopup.querySelector("button").onclick = () => {
+        resultPopup.style.display = "none";
+        overlay.style.display = "none";
+        generatePoolAndStart();
+    };
+}
+
+function initKeyboard() {
+    keyboard.innerHTML = "";
+
+    const keys = [7,8,9,4,5,6,1,2,3,0];
+
+    keys.forEach(n => {
+        const btn = document.createElement("button");
+        btn.innerText = n;
+        btn.style.background = colors[keys.indexOf(n)];
+
+        btn.addEventListener("pointerdown", (e) => {
+            e.preventDefault();
+            btn.classList.add('active');
+            press(n);
+        });
+
+        btn.addEventListener("pointerup", () => btn.classList.remove('active'));
+        btn.addEventListener("pointercancel", () => btn.classList.remove('active'));
+
+        keyboard.appendChild(btn);
+    });
+
+    // ⌫
+    const backBtn = document.createElement("button");
+    backBtn.innerText = "⌫";
+    backBtn.style.background = "#888";
+
+    backBtn.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        backBtn.classList.add('active');
+        back();
+    });
+    backBtn.addEventListener("pointerup", () => backBtn.classList.remove('active'));
+    backBtn.addEventListener("pointercancel", () => backBtn.classList.remove('active'));
+    keyboard.appendChild(backBtn);
+
+    // OK
+    const okBtn = document.createElement("button");
+    okBtn.innerText = "OK";
+    okBtn.style.background = "#28A745";
+
+    okBtn.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        okBtn.classList.add('active');
+        ok();
+    });
+    okBtn.addEventListener("pointerup", () => okBtn.classList.remove('active'));
+    okBtn.addEventListener("pointercancel", () => okBtn.classList.remove('active'));
+    keyboard.appendChild(okBtn);
+}
+
+function startTimer() {
+    clearInterval(timerInterval);
+    if (timeLimit === 0) {
+        timerBar.parentElement.style.display = "none";
+        return;
+    }
+    timerBar.parentElement.style.display = "block";
+    let width = 100;
+    const interval = 100;
+    const decrement = (interval / (timeLimit * 1000)) * 100;
+    timerBar.style.width = "100%";
+    timerInterval = setInterval(() => {
+        width -= decrement;
+        timerBar.style.width = Math.max(width, 0) + "%";
+        if (width <= 0) {
+            clearInterval(timerInterval);
+            showResult("Час вийшов!", false);
+        }
+    }, interval);
+}
+
+// Фізична клавіатура
+document.addEventListener('keydown', function(e) {
+    if (modePopup.style.display === 'block' || 
+        digitPopup.style.display === 'block' || 
+        speedPopup.style.display === 'block' ||
+        resultPopup.style.display === 'block') return;
+
+    let targetButton = null;
+
+    if ((e.key >= '0' && e.key <= '9') || (e.code.startsWith('Numpad') && e.key >= '0' && e.key <= '9')) {
+        const digit = e.key;
+        targetButton = Array.from(keyboard.querySelectorAll('button')).find(btn => btn.innerText === digit);
+        if (targetButton) {
+            e.preventDefault();
+            targetButton.classList.add('active');
+            press(digit);
+            setTimeout(() => targetButton.classList.remove('active'), 80);
+        }
+    }
+    else if (e.key === 'Backspace' || e.key === 'Delete') {
+        targetButton = Array.from(keyboard.querySelectorAll('button')).find(btn => btn.innerText === '⌫');
+        if (targetButton) {
+            e.preventDefault();
+            targetButton.classList.add('active');
+            back();
+            setTimeout(() => targetButton.classList.remove('active'), 80);
+        }
+    }
+    else if (e.key === 'Enter') {
+        targetButton = Array.from(keyboard.querySelectorAll('button')).find(btn => btn.innerText === 'OK');
+        if (targetButton) {
+            e.preventDefault();
+            targetButton.classList.add('active');
+            ok();
+            setTimeout(() => targetButton.classList.remove('active'), 80);
+        }
+    }
+});
+
+initKeyboard();
+generatePoolAndStart();   // запускаємо перший тест
+
+document.addEventListener("click", (e) => {
+    if (!modePopup.contains(e.target) && e.target !== modeBtn) modePopup.style.display = "none";
+    if (!digitPopup.contains(e.target) && e.target !== digitBtn) digitPopup.style.display = "none";
+    if (!speedPopup.contains(e.target) && e.target !== speedBtn) speedPopup.style.display = "none";
+});
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+</script>
+</body>
+</html>
