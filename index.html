@@ -369,7 +369,7 @@ button{
     <header id="topbar">
         <button id="settingsBtn" class="round-btn" aria-label="Налаштування">⚙️</button>
         <div class="spacer"></div>
-        <button id="zooBtn" class="round-btn" aria-label="Мій зоопарк">🐾<span id="zooBadge" class="badge">0</span></button>
+        <button id="zooBtn" class="round-btn" aria-label="Мій зоопарк">🐾<span id="zooBadge" class="badge" hidden></span></button>
         <button id="statsBtn" class="round-btn" aria-label="Статистика">📊</button>
         <button id="soundBtn" class="round-btn" aria-label="Увімкнути або вимкнути звук">🔊</button>
     </header>
@@ -811,11 +811,29 @@ function renderStats() {
 }
 
 // ---------- Шторка зоопарку ----------
+// Бейдж — лише для нових, ще не переглянутих тваринок; зникає, коли дитина відкриє зоопарк.
+// Зберігаємо, скільки тваринок уже бачили (за замовчуванням — усі наявні, щоб не було старих «непрочитаних»)
+const ZOO_SEEN_KEY = "mult.zooSeen";
+let zooSeen = parseInt(localStorage.getItem(ZOO_SEEN_KEY), 10);
+
 function updateZooBadge() {
-    $("zooBadge").textContent = zoo.length;
+    const badge = $("zooBadge");
+    const unseen = Math.max(0, zoo.length - zooSeen);
+    badge.hidden = unseen === 0;
+    badge.textContent = unseen;
+    $("zooBtn").setAttribute("aria-label", unseen ? `Мій зоопарк: нових тваринок ${unseen}` : "Мій зоопарк");
 }
 
+function markZooSeen() {
+    zooSeen = zoo.length;
+    try { localStorage.setItem(ZOO_SEEN_KEY, String(zooSeen)); } catch {}
+    updateZooBadge();
+}
+
+if (!Number.isInteger(zooSeen)) markZooSeen();
+
 function openZoo(highlight) {
+    markZooSeen();
     const sel = highlight || zoo[zoo.length - 1];
     let html = sheetHead("🐾 Мій зоопарк");
     html += `<div class="zoo-progress">Зібрано <b>${zoo.length}</b> з ${ANIMAL_COUNT}
