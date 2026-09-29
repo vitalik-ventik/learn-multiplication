@@ -316,6 +316,46 @@ button{
 .end-actions{display:flex;flex-direction:column;gap:14px;margin-top:16px;}
 .end-actions .candy{height:56px;font-size:22px;}
 
+/* Діалог підтвердження (замість браузерного confirm) */
+#confirmLayer{
+    position:fixed;inset:0;z-index:600;
+    display:flex;align-items:center;justify-content:center;
+    padding:16px;
+}
+#confirmLayer[hidden]{display:none;}
+.confirm-backdrop{
+    position:absolute;inset:0;
+    background:rgba(45,42,74,0.45);
+    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+    animation:fadeIn .2s;
+}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.confirm-box{
+    position:relative;
+    width:min(340px,100%);
+    background:#fff;
+    border-radius:28px;
+    padding:22px 20px 24px;
+    text-align:center;
+    box-shadow:0 20px 50px rgba(0,0,0,0.3);
+    animation:confirmIn .3s cubic-bezier(.2,1.4,.4,1);
+}
+@keyframes confirmIn{from{transform:scale(.7);opacity:0;}to{transform:scale(1);opacity:1;}}
+.confirm-icon{
+    width:76px;height:76px;margin:-60px auto 8px;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:50%;
+    background:#fff6e0;
+    font-size:40px;
+    box-shadow:0 6px 16px rgba(0,0,0,0.15);
+}
+.confirm-title{font-size:24px;font-weight:900;}
+.confirm-text{font-size:17px;font-weight:700;color:var(--ink-soft);margin:6px 0 20px;}
+.confirm-actions{display:flex;gap:12px;}
+.confirm-actions .candy{flex:1;height:54px;font-size:19px;padding:0 8px;}
+.candy.soft{--c:#f1eefc;--d:#d6d1ee;color:var(--ink);text-shadow:none;}
+.candy:focus-visible,.chip:focus-visible,.round-btn:focus-visible{outline:3px solid var(--ink);outline-offset:3px;}
+
 @media (prefers-reduced-motion: reduce){
     *,*::before,*::after{animation:none !important;transition:none !important;}
     .dot-row{opacity:1;}
@@ -362,6 +402,19 @@ button{
 <section id="statsSheet" class="sheet" aria-label="Статистика"></section>
 <section id="zooSheet" class="sheet" aria-label="Мій зоопарк"></section>
 
+<div id="confirmLayer" hidden>
+    <div class="confirm-backdrop" id="confirmBackdrop"></div>
+    <div class="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmText">
+        <div class="confirm-icon" id="confirmIcon" aria-hidden="true"></div>
+        <div class="confirm-title" id="confirmTitle"></div>
+        <div class="confirm-text" id="confirmText"></div>
+        <div class="confirm-actions">
+            <button class="candy soft" id="confirmCancel"></button>
+            <button class="candy" id="confirmOk"></button>
+        </div>
+    </div>
+</div>
+
 <script>
 // ---------- Збереження ----------
 const SETTINGS_KEY = "mult.settings";
@@ -379,7 +432,7 @@ function saveJSON(key, value) {
 }
 
 const settings = Object.assign(
-    { mode: "normal", digit: 0, length: 0, speed: 0, sound: true },
+    { mode: "normal", digit: 0, length: 10, speed: 0, sound: true },
     loadJSON(SETTINGS_KEY, {})
 );
 let stats = loadJSON(STATS_KEY, {});
@@ -585,7 +638,7 @@ function renderSettingsSheet() {
     $("settingsDone").onclick = closeSheet;
 }
 
-function applySettings() {
+async function applySettings() {
     const d = draft;
     draft = null;
     if (!d) return;
@@ -593,8 +646,16 @@ function applySettings() {
     const needsRestart = keys.some(k => SETTING_DEFS[k].restarts && d[k] !== settings[k]);
     const speedChanged = d.speed !== settings.speed;
     if (!needsRestart && !speedChanged) return;
-    if (needsRestart && sessionInProgress() &&
-        !confirm("Почати новий тест? Поточний прогрес буде втрачено.")) return;
+    if (needsRestart && sessionInProgress()) {
+        const confirmed = await askConfirm({
+            icon: "🔄",
+            title: "Почати новий тест?",
+            text: "Поточний прогрес буде втрачено.",
+            okText: "Почати",
+            cancelText: "Ні, далі"
+        });
+        if (!confirmed) return;
+    }
 
     keys.forEach(k => { settings[k] = d[k]; });
     saveJSON(SETTINGS_KEY, settings);
@@ -609,6 +670,41 @@ soundBtn.onclick = () => {
     saveJSON(SETTINGS_KEY, settings);
     renderSummary();
 };
+
+// ---------- Діалог підтвердження (замість браузерного confirm) ----------
+const confirmLayer = $("confirmLayer");
+const confirmOk = $("confirmOk");
+const confirmCancel = $("confirmCancel");
+let confirmResolve = null;
+
+// Повертає Promise<boolean>. Для небезпечних дій фокус на «Скасувати», щоб Enter нічого не зламав
+function askConfirm({ icon, title, text, okText, cancelText = "Скасувати", danger = false }) {
+    if (confirmResolve) closeConfirm(false);
+    $("confirmIcon").textContent = icon;
+    $("confirmTitle").textContent = title;
+    $("confirmText").textContent = text;
+    confirmOk.textContent = okText;
+    confirmCancel.textContent = cancelText;
+    confirmOk.className = "candy " + (danger ? "coral" : "green");
+    confirmLayer.hidden = false;
+    pauseTimer();
+    (danger ? confirmCancel : confirmOk).focus({ preventScroll: true });
+    return new Promise(resolve => { confirmResolve = resolve; });
+}
+
+function closeConfirm(result) {
+    if (!confirmResolve) return;
+    const resolve = confirmResolve;
+    confirmResolve = null;
+    confirmLayer.hidden = true;
+    document.activeElement?.blur();
+    resolve(result);
+    resumeTimer();
+}
+
+confirmOk.onclick = () => closeConfirm(true);
+confirmCancel.onclick = () => closeConfirm(false);
+$("confirmBackdrop").onclick = () => closeConfirm(false);
 
 // ---------- Шторки ----------
 let openSheetEl = null;
@@ -681,8 +777,16 @@ function renderStats() {
     html += `<div class="sheet-actions"><button id="statsResetBtn" class="candy coral">Скинути</button></div>`;
     statsSheet.innerHTML = html;
 
-    $("statsResetBtn").onclick = () => {
-        if (!confirm("Видалити всю статистику?")) return;
+    $("statsResetBtn").onclick = async () => {
+        const confirmed = await askConfirm({
+            icon: "🗑️",
+            title: "Видалити статистику?",
+            text: "Усі результати буде стерто назавжди.",
+            okText: "Видалити",
+            cancelText: "Залишити",
+            danger: true
+        });
+        if (!confirmed) return;
         stats = {};
         saveJSON(STATS_KEY, stats);
         renderStats();
@@ -1023,7 +1127,7 @@ function pauseTimer() {
 }
 
 function resumeTimer() {
-    if (timerId || state !== "question" || !settings.speed || openSheetEl || document.hidden) return;
+    if (timerId || state !== "question" || !settings.speed || openSheetEl || confirmResolve || document.hidden) return;
     deadline = Date.now() + remaining;
     timerId = setInterval(tickTimer, 50);
 }
@@ -1086,6 +1190,11 @@ function flash(btn) {
 
 // ---------- Фізична клавіатура ----------
 document.addEventListener("keydown", e => {
+    // Поки відкрито підтвердження: Esc — скасувати, Enter/пробіл — натискають кнопку у фокусі
+    if (confirmResolve) {
+        if (e.key === "Escape") { e.preventDefault(); closeConfirm(false); }
+        return;
+    }
     if (e.key === "Escape") {
         if (openSheetEl) { e.preventDefault(); closeSheet(); }
         return;
