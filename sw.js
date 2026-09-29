@@ -11,6 +11,8 @@ const CORE = [
   "./manifest.json",
   "./version.js",
   "./vendor/confetti.browser.min.js",
+  "./fonts/nunito-latin.woff2",
+  "./fonts/nunito-cyrillic.woff2",
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",
