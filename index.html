@@ -220,6 +220,13 @@ button{
     will-change:transform;
 }
 .floater.static{top:var(--top);animation:none;}
+.floater-block{box-shadow:inset -3px -3px 0 rgba(0,0,0,0.22),inset 3px 3px 0 rgba(255,255,255,0.22);}
+.floater-glow{border-radius:50%;}
+.floater-bubble{
+    border-radius:50%;
+    border:2px solid rgba(255,255,255,0.75);
+    background:radial-gradient(circle at 30% 30%,rgba(255,255,255,0.7) 0 18%,transparent 22%);
+}
 @keyframes drift{
     0%{transform:translate(0,0) rotate(0deg);}
     50%{transform:translate(var(--sway),-62vh) rotate(18deg);}
@@ -390,7 +397,8 @@ button{
 .tab-panel[hidden]{display:none;}
 .sheet-footer{flex:none;padding-top:12px;border-top:2px solid #f3f1fb;}
 
-.theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
+.theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px;}
+.theme-group{margin-top:16px;}
 .theme-card{
     position:relative;
     height:96px;
@@ -538,7 +546,7 @@ function saveJSON(key, value) {
 }
 
 const settings = Object.assign(
-    { mode: "normal", digit: 0, length: 10, speed: 0, sound: true, vibrate: true, theme: "sunrise" },
+    { mode: "normal", digit: 0, length: 10, speed: 0, sound: true, vibrate: true, theme: "mc-plains" },
     loadJSON(SETTINGS_KEY, {})
 );
 let stats = loadJSON(STATS_KEY, {});
@@ -680,55 +688,181 @@ const summaryBtn = $("summaryBtn");
 $("version").textContent = "v" + (self.APP_VERSION || "");
 
 // ---------- Теми: відкриваються за зібраних тваринок ----------
-// floaters — що пливе на фоні; runner/goal — хто і куди біжить у таймері
+// Фан-теми за мотивами улюблених світів: лише кольори, CSS-малюнок та емодзі, без чужих зображень.
+// floaters — що пливе на фоні: рядок (емодзі/символ) або об'єкт:
+//   {block: колір, top?: колір верхівки, ore?: колір вкраплень} — піксельний блок
+//   {glow: колір} — світна частинка;  {bubble: true} — бульбашка
+// runner/goal — хто і куди біжить у таймері
+const THEME_GROUPS = [
+    { id: "minecraft",  title: "⛏️ Майнкрафт", prefix: "Майнкрафт" },
+    { id: "subnautica", title: "🌊 Subnautica", prefix: "Subnautica" },
+    { id: "movies",     title: "🎬 Кіно й мультики" }
+];
+
+const GRASS = { block: "#8b5a2b", top: "#5fa83a" };
+const BUBBLE = { bubble: true };
+
 const THEMES = [
+    // ⛏️ Майнкрафт
     {
-        id: "sunrise", name: "🌅 Світанок", need: 0,
-        bg: "linear-gradient(to bottom,#ffecd2,#fcb69f)", themeColor: "#FFD6B8", onBg: "#6b6890",
-        floaters: ["×", "2", "÷", "5", "=", "7", "+", "9", "3", "8"], floaterColor: "rgba(255,255,255,0.75)",
-        runner: "🐞", goal: "🌼"
+        id: "mc-plains", group: "minecraft", name: "Рівнини", need: 0,
+        bg: "linear-gradient(to bottom,#79b8ff 0%,#bfe0ff 62%,#5fa83a 62%,#5fa83a 66%,#8b5a2b 66%,#6b4220 100%)",
+        themeColor: "#79b8ff", onBg: "#ffffff",
+        floaters: [GRASS, { block: "#ffffff" }, { block: "#2f7d32" }, "🌼", GRASS, { block: "#ffffff" }, { block: "#9a9a9a" }],
+        runner: "🐷", goal: "🥕"
     },
     {
-        id: "space", name: "🚀 Космос", need: 5,
-        bg: "radial-gradient(ellipse at 50% 0%,#4a3b95,#1b1542 65%)", themeColor: "#2a2160", onBg: "#d8d2ff",
-        floaters: ["⭐", "✨", "🪐", "·", "🌟", "☄️", "·", "✨"], floaterColor: "rgba(255,255,255,0.8)",
-        runner: "🚀", goal: "🌙"
+        id: "mc-desert", group: "minecraft", name: "Пустеля", need: 6,
+        bg: "linear-gradient(to bottom,#ffcf7a 0%,#ffe8b5 60%,#e8d49a 60%,#d8c07c 100%)",
+        themeColor: "#ffcf7a", onBg: "#6e5216",
+        floaters: [{ block: "#e8d49a" }, "🌵", { block: "#d6bd7a", top: "#ecdcaa" }, { block: "#c9a55a" }, "🌵", { block: "#e8d49a" }],
+        runner: "🐪", goal: "🌵"
     },
     {
-        id: "sea", name: "🐠 Море", need: 10,
-        bg: "linear-gradient(to bottom,#a8e6ff,#3a8fd1)", themeColor: "#a8e6ff", onBg: "#ffffff",
-        floaters: ["○", "🐟", "○", "🐠", "○", "🐡", "○", "🐚"], floaterColor: "rgba(255,255,255,0.85)",
-        runner: "🐢", goal: "🏝️"
+        id: "mc-cave", group: "minecraft", name: "Печера", need: 15,
+        bg: "linear-gradient(to bottom,#4a4a4a,#262626 60%,#141414)",
+        themeColor: "#333333", onBg: "#d6d6d6",
+        floaters: [
+            { block: "#7a7a7a", ore: "#5ff2f2" }, { block: "#7a7a7a", ore: "#f2c94c" }, { glow: "#ffb84d" },
+            { block: "#7a7a7a", ore: "#e23b3b" }, { block: "#7a7a7a", ore: "#2b2b2b" }, { block: "#7a7a7a", ore: "#43d16b" }
+        ],
+        runner: "⛏️", goal: "💎"
     },
     {
-        id: "forest", name: "🌳 Ліс", need: 15,
-        bg: "linear-gradient(to bottom,#e3f9c0,#8fd49b)", themeColor: "#e3f9c0", onBg: "#2f5a38",
-        floaters: ["🍃", "🌸", "🍂", "🦋", "🍃", "🌼", "🐝"],
-        runner: "🐿️", goal: "🌰"
+        id: "mc-nether", group: "minecraft", name: "Незер", need: 26,
+        bg: "linear-gradient(to bottom,#3d0b0b 0%,#7a1d12 58%,#ff6a00 90%,#ffb000 100%)",
+        themeColor: "#3d0b0b", onBg: "#ffe0c2",
+        floaters: [{ block: "#7a2f2f" }, { glow: "#ff8a00" }, "🔥", { block: "#ff7a00", ore: "#ffd000" }, { block: "#4b2a1a", ore: "#f2c94c" }, { glow: "#ff5a00" }],
+        runner: "🐗", goal: "🟪"
     },
     {
-        id: "candy", name: "🍭 Цукерки", need: 25,
-        bg: "linear-gradient(to bottom,#fbc2eb,#a6c1ee)", themeColor: "#fbc2eb", onBg: "#5b4a8a",
-        floaters: ["🍬", "🍭", "🧁", "💖", "🍩", "⭐", "🍬"],
-        runner: "🦄", goal: "🌈"
+        id: "mc-end", group: "minecraft", name: "Енд", need: 40,
+        bg: "radial-gradient(ellipse at 50% 25%,#2e1b45,#0b0614 70%)",
+        themeColor: "#120a1f", onBg: "#e8dcff",
+        floaters: [{ block: "#e6e2a8" }, { glow: "#c77dff" }, { block: "#1e1028", ore: "#c77dff" }, "✨", { glow: "#c77dff" }, { block: "#e6e2a8" }],
+        runner: "🐉", goal: "🥚"
+    },
+
+    // 🌊 Subnautica
+    {
+        id: "sn-shallows", group: "subnautica", name: "Мілини", need: 4,
+        bg: "linear-gradient(to bottom,#8ff3ff 0%,#2cc4d8 45%,#0d86ad 100%)",
+        themeColor: "#8ff3ff", onBg: "#ffffff",
+        floaters: [BUBBLE, "🐠", BUBBLE, "🐚", { glow: "#ff8fd1" }, "🐟", BUBBLE],
+        runner: "🤿", goal: "🐚"
+    },
+    {
+        id: "sn-kelp", group: "subnautica", name: "Ліс водоростей", need: 12,
+        bg: "linear-gradient(to bottom,#46c9a6 0%,#18785e 55%,#0a3a30 100%)",
+        themeColor: "#46c9a6", onBg: "#d8fff0",
+        floaters: ["🌿", BUBBLE, { glow: "#ffb347" }, "🌿", { glow: "#ffb347" }, "🐟", BUBBLE],
+        runner: "🐟", goal: "🌿"
+    },
+    {
+        id: "sn-arctic", group: "subnautica", name: "Арктика", need: 22,
+        bg: "linear-gradient(to bottom,#eef9ff 0%,#a5dbf6 45%,#3a8bc2 100%)",
+        themeColor: "#eef9ff", onBg: "#ffffff",
+        floaters: ["❄️", BUBBLE, "🐧", "🧊", BUBBLE, "❄️"], floaterColor: "#ffffff",
+        runner: "🐧", goal: "🧊"
+    },
+    {
+        id: "sn-deep", group: "subnautica", name: "Глибини", need: 35,
+        bg: "radial-gradient(ellipse at 50% 0%,#0f3a5a,#03111f 65%,#000000 100%)",
+        themeColor: "#03111f", onBg: "#9ff7ff",
+        floaters: [{ glow: "#3cf2ff" }, { glow: "#7dff8a" }, "🦑", { glow: "#b28dff" }, BUBBLE, { glow: "#3cf2ff" }, "🐙"],
+        runner: "🦑", goal: "🔦"
+    },
+
+    // 🎬 Кіно й мультики
+    {
+        id: "spongebob", group: "movies", name: "Губка Боб", need: 2,
+        bg: "linear-gradient(to bottom,#5fd3ff 0%,#2fa4e7 62%,#f3d98b 62%,#e3c062 100%)",
+        themeColor: "#5fd3ff", onBg: "#5a4310",
+        floaters: ["🌸", BUBBLE, "🌺", "🌼", BUBBLE, "🍍", "🌸"],
+        runner: "🧽", goal: "🍔"
+    },
+    {
+        id: "godzilla", group: "movies", name: "Ґодзілла", need: 9,
+        bg: "repeating-linear-gradient(90deg,#0b1226 0 34px,transparent 34px 46px,#0e1730 46px 70px,transparent 70px 80px) bottom/100% 22% no-repeat," +
+            "linear-gradient(to bottom,#0c1b3a,#24467d 70%,#0a0f1f)",
+        themeColor: "#0c1b3a", onBg: "#bfe6ff",
+        floaters: [{ glow: "#4fc3ff" }, "⚡", { glow: "#4fc3ff" }, "🌀", { glow: "#8fe3ff" }, "⚡"],
+        runner: "🦖", goal: "🏙️"
+    },
+    {
+        id: "predator", group: "movies", name: "Хижак", need: 18,
+        bg: "linear-gradient(to bottom,#1b0b4d 0%,#5a1a8c 35%,#d1263a 70%,#ffb300 100%)",
+        themeColor: "#1b0b4d", onBg: "#fff3d6",
+        floaters: [{ glow: "#ff1a1a" }, "🌴", { glow: "#ff1a1a" }, "🌿", { glow: "#ff1a1a" }, { glow: "#ff1a1a" }],
+        runner: "🏃", goal: "🚁"
+    },
+    {
+        id: "alien", group: "movies", name: "Чужий", need: 30,
+        bg: "repeating-radial-gradient(circle at 50% 100%,rgba(80,255,120,0.14) 0 2px,transparent 2px 64px)," +
+            "linear-gradient(to bottom,#0b1a10,#030805)",
+        themeColor: "#0b1a10", onBg: "#7dff9a",
+        floaters: [{ glow: "#5dff7a" }, "👾", { glow: "#5dff7a" }, "🥚", { glow: "#b6ff3c" }, "👽"],
+        runner: "🧑‍🚀", goal: "🚀"
     }
 ];
 
 const themeById = id => THEMES.find(t => t.id === id) || THEMES[0];
 const isThemeUnlocked = t => zoo.length >= t.need;
+const themeTitle = t => {
+    const group = THEME_GROUPS.find(g => g.id === t.group);
+    return group && group.prefix ? `${group.prefix}: ${t.name}` : t.name;
+};
+// Найближча ще закрита тема (масив згрупований, а не відсортований за need)
+const nextLockedTheme = () => THEMES
+    .filter(t => !isThemeUnlocked(t))
+    .sort((a, b) => a.need - b.need)[0];
+
+function makeFloater(item, size) {
+    const el = document.createElement("div");
+    if (typeof item === "string") {
+        el.textContent = item;
+        el.style.fontSize = size + "px";
+        return el;
+    }
+    if (item.block) {
+        const s = Math.round(size * 0.8);
+        el.className = "floater-block";
+        el.style.width = el.style.height = s + "px";
+        const layers = [];
+        if (item.top) layers.push(`linear-gradient(to bottom,${item.top} 0 30%,transparent 30%)`);
+        if (item.ore) {
+            layers.push(
+                `radial-gradient(circle at 28% 30%,${item.ore} 0 13%,transparent 14%)`,
+                `radial-gradient(circle at 70% 55%,${item.ore} 0 12%,transparent 13%)`,
+                `radial-gradient(circle at 38% 78%,${item.ore} 0 10%,transparent 11%)`);
+        }
+        layers.push(item.block);
+        el.style.background = layers.join(",");
+    } else if (item.glow) {
+        const s = Math.round(4 + size * 0.22);
+        el.className = "floater-glow";
+        el.style.width = el.style.height = s + "px";
+        el.style.background = item.glow;
+        el.style.boxShadow = `0 0 ${s * 1.5}px ${s / 2}px ${item.glow}`;
+    } else if (item.bubble) {
+        const s = Math.round(size * 0.7);
+        el.className = "floater-bubble";
+        el.style.width = el.style.height = s + "px";
+    }
+    return el;
+}
 
 function renderFloaters(theme) {
     const layer = $("bgLayer");
     layer.innerHTML = "";
     const count = 14;
     for (let i = 0; i < count; i++) {
-        const el = document.createElement("div");
-        el.className = "floater" + (reduceMotion ? " static" : "");
-        el.textContent = theme.floaters[i % theme.floaters.length];
+        const el = makeFloater(theme.floaters[i % theme.floaters.length], 18 + Math.random() * 26);
+        el.classList.add("floater");
+        if (reduceMotion) el.classList.add("static");
         const dur = 22 + Math.random() * 22;
         el.style.left = (i / count * 100 + Math.random() * 6) + "%";
-        el.style.fontSize = (18 + Math.random() * 26) + "px";
-        el.style.opacity = (0.35 + Math.random() * 0.4).toFixed(2);
+        el.style.opacity = (0.4 + Math.random() * 0.4).toFixed(2);
         el.style.setProperty("--dur", dur + "s");
         el.style.setProperty("--delay", -(Math.random() * dur) + "s"); // вже «в дорозі» при старті
         el.style.setProperty("--sway", (Math.random() * 80 - 40) + "px");
@@ -837,18 +971,23 @@ function chipGroupHtml(key) {
 }
 
 function themeCardsHtml() {
-    let html = `<div class="theme-grid">`;
-    THEMES.forEach(t => {
-        const unlocked = isThemeUnlocked(t);
-        html += `<button class="theme-card${t.id === draft.theme ? " selected" : ""}${unlocked ? "" : " locked"}"
-                    ${unlocked ? `data-theme="${t.id}"` : "disabled"} style="background:${t.bg}">
-                <span class="theme-trip">${t.runner} → ${t.goal}</span>
-                <span class="theme-name">${unlocked ? t.name : `🔒 ${t.need} 🐾`}</span>
-            </button>`;
+    let html = "";
+    THEME_GROUPS.forEach(g => {
+        html += `<div class="group-label theme-group">${g.title}</div><div class="theme-grid">`;
+        THEMES.filter(t => t.group === g.id).forEach(t => {
+            const unlocked = isThemeUnlocked(t);
+            html += `<button class="theme-card${t.id === draft.theme ? " selected" : ""}${unlocked ? "" : " locked"}"
+                        ${unlocked ? `data-theme="${t.id}"` : "disabled"} style="background:${t.bg}"
+                        title="${themeTitle(t)}">
+                    <span class="theme-trip">${t.runner} → ${t.goal}</span>
+                    <span class="theme-name">${unlocked ? t.name : `🔒 ${t.need} 🐾`}</span>
+                </button>`;
+        });
+        html += `</div>`;
     });
-    html += `</div>`;
-    const next = THEMES.find(t => !isThemeUnlocked(t));
-    if (next) html += `<div class="zoo-next">Нові теми відкриваються за тваринок у зоопарку 🐾 (зараз ${zoo.length})</div>`;
+    if (nextLockedTheme()) {
+        html += `<div class="zoo-next">Нові теми відкриваються за тваринок у зоопарку 🐾 (зараз ${zoo.length})</div>`;
+    }
     return html;
 }
 
@@ -1127,9 +1266,9 @@ function openZoo(highlight) {
     let html = sheetHead("🐾 Мій зоопарк");
     html += `<div class="zoo-progress">Зібрано <b>${zoo.length}</b> з ${ANIMAL_COUNT}
         <div class="zoo-bar"><div style="width:${zoo.length / ANIMAL_COUNT * 100}%"></div></div></div>`;
-    const nextTheme = THEMES.find(t => t.need > zoo.length);
+    const nextTheme = nextLockedTheme();
     if (nextTheme) {
-        html += `<div class="zoo-next">🎨 Тема <span style="white-space:nowrap">«${nextTheme.name}»</span> відкриється, коли буде ${nextTheme.need} 🐾 (ще ${nextTheme.need - zoo.length})</div>`;
+        html += `<div class="zoo-next">🎨 Тема <span style="white-space:nowrap">«${themeTitle(nextTheme)}»</span> відкриється, коли буде ${nextTheme.need} 🐾 (ще ${nextTheme.need - zoo.length})</div>`;
     }
     html += sel
         ? `<div class="zoo-viewer"><img id="zooViewerImg" src="${animalSrc(sel)}" alt="Тваринка"></div>`
@@ -1421,7 +1560,7 @@ function showSessionEnd() {
         const newTheme = unlocked.isNew && THEMES.find(t => t.need > 0 && t.need === zoo.length);
         if (newTheme) {
             reward += `
-                <div class="end-theme">🎨 Відкрито нову тему <span style="white-space:nowrap">«${newTheme.name}»</span>!
+                <div class="end-theme">🎨 Відкрито нову тему <span style="white-space:nowrap">«${themeTitle(newTheme)}»</span>!
                     <button class="candy" id="endThemeBtn" data-theme="${newTheme.id}">Увімкнути</button>
                 </div>`;
         }
@@ -1601,7 +1740,8 @@ document.addEventListener("keydown", e => {
 });
 
 // ---------- Старт ----------
-if (!isThemeUnlocked(themeById(settings.theme))) settings.theme = "sunrise";
+settings.theme = themeById(settings.theme).id; // старі id тем (до v2.9) → перша тема
+if (!isThemeUnlocked(themeById(settings.theme))) settings.theme = THEMES[0].id;
 applyTheme(settings.theme);
 renderSummary();
 updateZooBadge();
