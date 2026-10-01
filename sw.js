@@ -10,6 +10,7 @@ const CORE = [
   "./index.html",
   "./manifest.json",
   "./version.js",
+  "./themes.js",
   "./vendor/confetti.browser.min.js",
   "./fonts/nunito-latin.woff2",
   "./fonts/nunito-cyrillic.woff2",

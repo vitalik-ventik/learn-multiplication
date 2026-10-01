@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Множення">
 <link rel="preload" href="fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script src="version.js"></script>
+<script src="themes.js"></script>
 <script src="vendor/confetti.browser.min.js" defer></script>
 <style>
 @font-face{
@@ -117,11 +118,19 @@ button{
 
 /* Картка з прикладом */
 #card{
+    position:relative;
+    overflow:hidden;
     background:var(--card);
     border-radius:28px;
-    padding:14px 16px 18px;
+    padding:24px 16px 18px;
     box-shadow:0 8px 0 rgba(0,0,0,0.05), 0 12px 30px rgba(0,0,0,0.12);
     text-align:center;
+}
+#card::before{
+    content:"";
+    position:absolute;left:0;right:0;top:0;
+    height:12px;
+    background:var(--card-strip,transparent);
 }
 #card.bounce{animation:bounce .45s;}
 #card.shake{animation:shake .4s;}
@@ -220,6 +229,37 @@ button{
     will-change:transform;
 }
 .floater.static{top:var(--top);animation:none;}
+
+/* Намальовані сцени тем і анімації всередині SVG */
+/* На вузьких екранах сцена вписується по ширині повністю; на дуже широких обрізається з боків */
+.scene{position:absolute;left:0;width:100%;height:auto;pointer-events:none;}
+.scene-top{top:0;}
+.scene-bottom{bottom:0;}
+.passer{position:absolute;left:0;line-height:1;will-change:transform;pointer-events:none;}
+.sc-sway{transform-box:fill-box;transform-origin:50% 100%;animation:scSway 5s ease-in-out infinite alternate;}
+@keyframes scSway{from{transform:rotate(-4deg);}to{transform:rotate(4deg);}}
+.sc-flicker{animation:scFlicker 1.4s infinite;}
+@keyframes scFlicker{0%,100%{opacity:1;}35%{opacity:.7;}55%{opacity:.95;}75%{opacity:.65;}}
+.sc-pulse,.sc-twinkle{animation:scPulse 3s ease-in-out infinite;}
+.sc-twinkle{animation-duration:2.2s;}
+@keyframes scPulse{0%,100%{opacity:.35;}50%{opacity:1;}}
+.sc-blink{animation:scBlink 1.2s steps(1) infinite;}
+@keyframes scBlink{0%,60%{opacity:1;}61%,100%{opacity:.15;}}
+.sc-drift{animation:scDrift 90s linear infinite;}
+@keyframes scDrift{from{transform:translateX(0);}to{transform:translateX(-800px);}}
+.sc-spin{transform-box:fill-box;transform-origin:50% 50%;animation:scSpin 5s linear infinite;}
+.sc-sweep{transform-origin:0 0;animation:scSpin 3.5s linear infinite;}
+@keyframes scSpin{to{transform:rotate(360deg);}}
+.sc-beam{transform-box:fill-box;transform-origin:50% 100%;animation:scBeam 9s ease-in-out infinite alternate;}
+@keyframes scBeam{from{transform:rotate(-20deg);}to{transform:rotate(20deg);}}
+.sc-rays{transform-box:fill-box;transform-origin:50% 0;animation:scRays 8s ease-in-out infinite alternate;}
+@keyframes scRays{from{transform:skewX(-8deg);opacity:.5;}to{transform:skewX(8deg);opacity:1;}}
+.sc-wave{animation:scWave 6s ease-in-out infinite alternate;}
+@keyframes scWave{from{transform:translateX(-20px);}to{transform:translateX(20px);}}
+.sc-aurora{transform-box:fill-box;transform-origin:50% 50%;animation:scAurora 10s ease-in-out infinite alternate;}
+@keyframes scAurora{from{transform:translateX(-30px) scaleY(.85);opacity:.55;}to{transform:translateX(30px) scaleY(1.15);opacity:1;}}
+.sc-fall{animation:scFall 1.6s linear infinite;}
+@keyframes scFall{from{transform:translateY(-40px);}to{transform:translateY(160px);}}
 .floater-block{box-shadow:inset -3px -3px 0 rgba(0,0,0,0.22),inset 3px 3px 0 rgba(255,255,255,0.22);}
 .floater-glow{border-radius:50%;}
 .floater-bubble{
@@ -603,6 +643,8 @@ const canVibrate = typeof navigator.vibrate === "function";
 
 function haptic(pattern) {
     if (!canVibrate || !settings.vibrate) return;
+    // Браузер дозволяє вібрацію лише після першого дотику до сторінки
+    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
     try { navigator.vibrate(pattern); } catch {}
 }
 
@@ -688,123 +730,7 @@ const summaryBtn = $("summaryBtn");
 $("version").textContent = "v" + (self.APP_VERSION || "");
 
 // ---------- Теми: відкриваються за зібраних тваринок ----------
-// Фан-теми за мотивами улюблених світів: лише кольори, CSS-малюнок та емодзі, без чужих зображень.
-// floaters — що пливе на фоні: рядок (емодзі/символ) або об'єкт:
-//   {block: колір, top?: колір верхівки, ore?: колір вкраплень} — піксельний блок
-//   {glow: колір} — світна частинка;  {bubble: true} — бульбашка
-// runner/goal — хто і куди біжить у таймері
-const THEME_GROUPS = [
-    { id: "minecraft",  title: "⛏️ Майнкрафт", prefix: "Майнкрафт" },
-    { id: "subnautica", title: "🌊 Subnautica", prefix: "Subnautica" },
-    { id: "movies",     title: "🎬 Кіно й мультики" }
-];
-
-const GRASS = { block: "#8b5a2b", top: "#5fa83a" };
-const BUBBLE = { bubble: true };
-
-const THEMES = [
-    // ⛏️ Майнкрафт
-    {
-        id: "mc-plains", group: "minecraft", name: "Рівнини", need: 0,
-        bg: "linear-gradient(to bottom,#79b8ff 0%,#bfe0ff 62%,#5fa83a 62%,#5fa83a 66%,#8b5a2b 66%,#6b4220 100%)",
-        themeColor: "#79b8ff", onBg: "#ffffff",
-        floaters: [GRASS, { block: "#ffffff" }, { block: "#2f7d32" }, "🌼", GRASS, { block: "#ffffff" }, { block: "#9a9a9a" }],
-        runner: "🐷", goal: "🥕"
-    },
-    {
-        id: "mc-desert", group: "minecraft", name: "Пустеля", need: 6,
-        bg: "linear-gradient(to bottom,#ffcf7a 0%,#ffe8b5 60%,#e8d49a 60%,#d8c07c 100%)",
-        themeColor: "#ffcf7a", onBg: "#6e5216",
-        floaters: [{ block: "#e8d49a" }, "🌵", { block: "#d6bd7a", top: "#ecdcaa" }, { block: "#c9a55a" }, "🌵", { block: "#e8d49a" }],
-        runner: "🐪", goal: "🌵"
-    },
-    {
-        id: "mc-cave", group: "minecraft", name: "Печера", need: 15,
-        bg: "linear-gradient(to bottom,#4a4a4a,#262626 60%,#141414)",
-        themeColor: "#333333", onBg: "#d6d6d6",
-        floaters: [
-            { block: "#7a7a7a", ore: "#5ff2f2" }, { block: "#7a7a7a", ore: "#f2c94c" }, { glow: "#ffb84d" },
-            { block: "#7a7a7a", ore: "#e23b3b" }, { block: "#7a7a7a", ore: "#2b2b2b" }, { block: "#7a7a7a", ore: "#43d16b" }
-        ],
-        runner: "⛏️", goal: "💎"
-    },
-    {
-        id: "mc-nether", group: "minecraft", name: "Незер", need: 26,
-        bg: "linear-gradient(to bottom,#3d0b0b 0%,#7a1d12 58%,#ff6a00 90%,#ffb000 100%)",
-        themeColor: "#3d0b0b", onBg: "#ffe0c2",
-        floaters: [{ block: "#7a2f2f" }, { glow: "#ff8a00" }, "🔥", { block: "#ff7a00", ore: "#ffd000" }, { block: "#4b2a1a", ore: "#f2c94c" }, { glow: "#ff5a00" }],
-        runner: "🐗", goal: "🟪"
-    },
-    {
-        id: "mc-end", group: "minecraft", name: "Енд", need: 40,
-        bg: "radial-gradient(ellipse at 50% 25%,#2e1b45,#0b0614 70%)",
-        themeColor: "#120a1f", onBg: "#e8dcff",
-        floaters: [{ block: "#e6e2a8" }, { glow: "#c77dff" }, { block: "#1e1028", ore: "#c77dff" }, "✨", { glow: "#c77dff" }, { block: "#e6e2a8" }],
-        runner: "🐉", goal: "🥚"
-    },
-
-    // 🌊 Subnautica
-    {
-        id: "sn-shallows", group: "subnautica", name: "Мілини", need: 4,
-        bg: "linear-gradient(to bottom,#8ff3ff 0%,#2cc4d8 45%,#0d86ad 100%)",
-        themeColor: "#8ff3ff", onBg: "#ffffff",
-        floaters: [BUBBLE, "🐠", BUBBLE, "🐚", { glow: "#ff8fd1" }, "🐟", BUBBLE],
-        runner: "🤿", goal: "🐚"
-    },
-    {
-        id: "sn-kelp", group: "subnautica", name: "Ліс водоростей", need: 12,
-        bg: "linear-gradient(to bottom,#46c9a6 0%,#18785e 55%,#0a3a30 100%)",
-        themeColor: "#46c9a6", onBg: "#d8fff0",
-        floaters: ["🌿", BUBBLE, { glow: "#ffb347" }, "🌿", { glow: "#ffb347" }, "🐟", BUBBLE],
-        runner: "🐟", goal: "🌿"
-    },
-    {
-        id: "sn-arctic", group: "subnautica", name: "Арктика", need: 22,
-        bg: "linear-gradient(to bottom,#eef9ff 0%,#a5dbf6 45%,#3a8bc2 100%)",
-        themeColor: "#eef9ff", onBg: "#ffffff",
-        floaters: ["❄️", BUBBLE, "🐧", "🧊", BUBBLE, "❄️"], floaterColor: "#ffffff",
-        runner: "🐧", goal: "🧊"
-    },
-    {
-        id: "sn-deep", group: "subnautica", name: "Глибини", need: 35,
-        bg: "radial-gradient(ellipse at 50% 0%,#0f3a5a,#03111f 65%,#000000 100%)",
-        themeColor: "#03111f", onBg: "#9ff7ff",
-        floaters: [{ glow: "#3cf2ff" }, { glow: "#7dff8a" }, "🦑", { glow: "#b28dff" }, BUBBLE, { glow: "#3cf2ff" }, "🐙"],
-        runner: "🦑", goal: "🔦"
-    },
-
-    // 🎬 Кіно й мультики
-    {
-        id: "spongebob", group: "movies", name: "Губка Боб", need: 2,
-        bg: "linear-gradient(to bottom,#5fd3ff 0%,#2fa4e7 62%,#f3d98b 62%,#e3c062 100%)",
-        themeColor: "#5fd3ff", onBg: "#5a4310",
-        floaters: ["🌸", BUBBLE, "🌺", "🌼", BUBBLE, "🍍", "🌸"],
-        runner: "🧽", goal: "🍔"
-    },
-    {
-        id: "godzilla", group: "movies", name: "Ґодзілла", need: 9,
-        bg: "repeating-linear-gradient(90deg,#0b1226 0 34px,transparent 34px 46px,#0e1730 46px 70px,transparent 70px 80px) bottom/100% 22% no-repeat," +
-            "linear-gradient(to bottom,#0c1b3a,#24467d 70%,#0a0f1f)",
-        themeColor: "#0c1b3a", onBg: "#bfe6ff",
-        floaters: [{ glow: "#4fc3ff" }, "⚡", { glow: "#4fc3ff" }, "🌀", { glow: "#8fe3ff" }, "⚡"],
-        runner: "🦖", goal: "🏙️"
-    },
-    {
-        id: "predator", group: "movies", name: "Хижак", need: 18,
-        bg: "linear-gradient(to bottom,#1b0b4d 0%,#5a1a8c 35%,#d1263a 70%,#ffb300 100%)",
-        themeColor: "#1b0b4d", onBg: "#fff3d6",
-        floaters: [{ glow: "#ff1a1a" }, "🌴", { glow: "#ff1a1a" }, "🌿", { glow: "#ff1a1a" }, { glow: "#ff1a1a" }],
-        runner: "🏃", goal: "🚁"
-    },
-    {
-        id: "alien", group: "movies", name: "Чужий", need: 30,
-        bg: "repeating-radial-gradient(circle at 50% 100%,rgba(80,255,120,0.14) 0 2px,transparent 2px 64px)," +
-            "linear-gradient(to bottom,#0b1a10,#030805)",
-        themeColor: "#0b1a10", onBg: "#7dff9a",
-        floaters: [{ glow: "#5dff7a" }, "👾", { glow: "#5dff7a" }, "🥚", { glow: "#b6ff3c" }, "👽"],
-        runner: "🧑‍🚀", goal: "🚀"
-    }
-];
+// THEME_GROUPS і THEMES — у themes.js
 
 const themeById = id => THEMES.find(t => t.id === id) || THEMES[0];
 // Для перегляду тем при локальному запуску: ?themes=all відкриває всі теми лише в пам'яті
@@ -856,9 +782,7 @@ function makeFloater(item, size) {
     return el;
 }
 
-function renderFloaters(theme) {
-    const layer = $("bgLayer");
-    layer.innerHTML = "";
+function renderFloaters(theme, layer) {
     const count = 14;
     for (let i = 0; i < count; i++) {
         const el = makeFloater(theme.floaters[i % theme.floaters.length], 18 + Math.random() * 26);
@@ -876,14 +800,73 @@ function renderFloaters(theme) {
     }
 }
 
+// Намальовані сцени: верхня притиснута до верху екрана, нижня — до низу
+function sceneHtml(theme) {
+    const sc = theme.scene || {};
+    let html = "";
+    if (sc.top) {
+        html += `<svg class="scene scene-top" style="height:min(${sc.topH || 26}vh,20vw)" viewBox="0 0 800 160"
+                    preserveAspectRatio="xMidYMin slice" aria-hidden="true">${sc.top}</svg>`;
+    }
+    if (sc.bottom) {
+        html += `<svg class="scene scene-bottom" style="height:min(${sc.bottomH || 32}vh,${(sc.bottomVB || 200) / 8}vw)" viewBox="0 0 800 ${sc.bottomVB || 200}"
+                    preserveAspectRatio="xMidYMax slice" aria-hidden="true">${sc.bottom}</svg>`;
+    }
+    return html;
+}
+
+// Іноді екраном пропливає/пролітає хтось із теми
+let passerTimer = null;
+
+function schedulePasser(theme, first) {
+    clearTimeout(passerTimer);
+    if (reduceMotion || !theme.passers || !theme.passers.length) return;
+    const p = theme.passers[Math.floor(Math.random() * theme.passers.length)];
+    const wait = first ? 2500 + Math.random() * 4000 : (p.every || 25) * 1000 * (0.7 + Math.random() * 0.6);
+    passerTimer = setTimeout(() => {
+        spawnPasser(p);
+        schedulePasser(theme, false);
+    }, wait);
+}
+
+function spawnPasser(p) {
+    if (document.hidden) return;
+    const layer = $("bgLayer");
+    const el = document.createElement("div");
+    el.className = "passer";
+    if (p.svg) el.innerHTML = p.svg;
+    else {
+        el.textContent = p.emoji;
+        el.style.fontSize = (p.size || 40) + "px";
+    }
+    el.style.top = (p.y[0] + Math.random() * (p.y[1] - p.y[0])) + "%";
+    layer.appendChild(el);
+    const w = el.offsetWidth || 100;
+    const from = p.ltr ? -w : window.innerWidth;
+    const to = p.ltr ? window.innerWidth : -w;
+    const bob = p.bob || 0;
+    el.animate([
+        { transform: `translate(${from}px,0)` },
+        { transform: `translate(${from + (to - from) * 0.25}px,${-bob}px)` },
+        { transform: `translate(${from + (to - from) * 0.5}px,0)` },
+        { transform: `translate(${from + (to - from) * 0.75}px,${-bob}px)` },
+        { transform: `translate(${to}px,0)` }
+    ], { duration: (p.dur || 16) * 1000, easing: "linear" }).onfinish = () => el.remove();
+}
+
 function applyTheme(id) {
     const theme = themeById(id);
     document.body.style.setProperty("--theme-bg", theme.bg);
     document.body.style.setProperty("--on-bg", theme.onBg);
+    document.body.style.setProperty("--card-strip", theme.strip || "transparent");
     document.querySelector('meta[name="theme-color"]').content = theme.themeColor;
     timerRunner.textContent = theme.runner;
     $("timerGoal").textContent = theme.goal;
-    renderFloaters(theme);
+
+    const layer = $("bgLayer");
+    layer.innerHTML = sceneHtml(theme);
+    renderFloaters(theme, layer);
+    schedulePasser(theme, true);
 }
 
 // ---------- Налаштування ----------
