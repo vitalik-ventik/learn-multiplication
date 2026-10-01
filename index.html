@@ -807,7 +807,11 @@ const THEMES = [
 ];
 
 const themeById = id => THEMES.find(t => t.id === id) || THEMES[0];
-const isThemeUnlocked = t => zoo.length >= t.need;
+// Для перегляду тем при локальному запуску: ?themes=all відкриває всі теми лише в пам'яті
+// (зоопарк не змінюється). На опублікованому сайті параметр ігнорується.
+const IS_LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)$/.test(location.hostname);
+const PREVIEW_ALL_THEMES = IS_LOCAL_HOST && new URLSearchParams(location.search).get("themes") === "all";
+const isThemeUnlocked = t => PREVIEW_ALL_THEMES || zoo.length >= t.need;
 const themeTitle = t => {
     const group = THEME_GROUPS.find(g => g.id === t.group);
     return group && group.prefix ? `${group.prefix}: ${t.name}` : t.name;
